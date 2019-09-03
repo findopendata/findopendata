@@ -1,0 +1,23 @@
+requests>=2.22.0
+google-cloud-storage>=1.17.0
+gcsfs>=0.3.0
+celery>=4.3.0
+psycopg2-binary>=2.7.5
+Django>=2.2.3
+python-magic>=0.4.15
+simplejson>=3.16.0
+genson>=1.1.0
+fastavro>=0.22.3
+python-snappy>=0.5.4
+python-dateutil>=2.8.0
+datasketch>=1.4.7
+pyfarmhash>=0.2.2
+cchardet>=2.1.4
+spacy>=2.1.8
+beautifulsoup4>=4.8.0
+
+# RFC6266 custom package
+https://github.com/ekzhu/rfc6266/archive/0.0.6.op1.tar.gz
+
+# Spacy language model
+https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-2.1.0/en_core_web_sm-2.1.0.tar.gz#egg=en_core_web_sm
