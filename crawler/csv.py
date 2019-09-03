@@ -1,5 +1,7 @@
 import csv
 import io
+import itertools
+from collections import OrderedDict
 
 from .util import guess_encoding_from_buffer
 
@@ -61,8 +63,6 @@ def csv2json(fileobj_binary, guess_encoding_bytes=8192, guess_header_rows=10,
         header_row_pos = -1
 
     # Yield records.
-    for row in head[header_row_pos+1:]:
-        yield dict(zip(headers, row))
-    for row in reader:
-        yield dict(zip(headers, row))
-
+    rows = itertools.chain(head[header_row_pos+1:], reader)
+    for row in rows:
+        yield OrderedDict(zip(headers, row))

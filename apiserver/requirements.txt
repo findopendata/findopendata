@@ -1,10 +1,7 @@
 flask==1.1.1
-psycopg2-binary==2.8.3
-google-cloud-datastore
 flask-cors==3.0.8
-simplejson
-python-magic
-gcsfs
-google-cloud-storage
-requests
-chardet
+requests>=2.22.0
+psycopg2-binary==2.8.3
+gcsfs>=0.3.0
+google-cloud-storage>=1.17.0
+google-cloud-datastore>=1.9.0
