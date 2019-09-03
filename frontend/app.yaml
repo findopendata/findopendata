@@ -1,0 +1,24 @@
+runtime: nodejs10
+service: default
+
+
+handlers:
+  - url: /static/js/(.*)
+    static_files: build/static/js/\1
+    upload: build/static/js/(.*)
+  - url: /static/css/(.*)
+    static_files: build/static/css/\1
+    upload: build/static/css/(.*)
+  - url: /static/media/(.*)
+    static_files: build/static/media/\1
+    upload: build/static/media/(.*)
+  - url: /(.*\.(json|ico))$
+    static_files: build/\1
+    upload: build/.*\.(json|ico)$
+  - url: /
+    static_files: build/index.html
+    upload: build/index.html
+  - url: /.*
+    static_files: build/index.html
+    upload: build/index.html
+

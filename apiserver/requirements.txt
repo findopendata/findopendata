@@ -1,0 +1,10 @@
+flask==1.1.1
+psycopg2-binary==2.8.3
+google-cloud-datastore
+flask-cors==3.0.8
+simplejson
+python-magic
+gcsfs
+google-cloud-storage
+requests
+chardet
