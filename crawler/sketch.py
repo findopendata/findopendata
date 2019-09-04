@@ -5,9 +5,10 @@ import farmhash
 import simplejson as json
 from datasketch import MinHash
 from celery.utils.log import get_task_logger
-from gcsfs.core import GCSFileSystem
 
 from .celery import app
+from .settings import db_configs
+from .storage import gcs_fs
 from .csv import csv2json
 from .avro import avro2json
 from .jsonl import jsonl2json
@@ -101,9 +102,8 @@ def sketch_package_file(package_file_key, bucket_name, blob_name, dataset_format
     sketcher = _sketchers[dataset_format]
 
     # Sketch the file.
-    fs = GCSFileSystem()
     try:
-        with fs.open(blob_path, "rb") as input_file:
+        with gcs_fs.open(blob_path, "rb") as input_file:
             sketches = sketcher(input_file, minhash_size, minhash_seed)
     except Exception as e:
         logger.error("Sketching {} ({}) failed due to {}".format(
@@ -113,7 +113,7 @@ def sketch_package_file(package_file_key, bucket_name, blob_name, dataset_format
     try:
         # Save sketches to the database
         # Initialize Postgres connection.
-        conn = psycopg2.connect("")
+        conn = psycopg2.connect(**db_configs)
         cur = conn.cursor()
         # Save
         for sketch in sketches:

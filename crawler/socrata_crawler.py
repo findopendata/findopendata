@@ -7,11 +7,12 @@ import psycopg2
 from celery.utils.log import get_task_logger
 
 from .celery import app
-from .storage import CloudStorageBucket
+from .storage import save_avro_records, save_object
 from .avro import JSON2AvroRecords
-from .settings import get_settings
+from .settings import crawler_configs, db_configs, gcp_configs
 
 
+# Logger for tasks.
 logger = get_task_logger(__name__)
 
 
@@ -40,7 +41,7 @@ def add_socrata_resource(metadata, app_token, bucket_name, blob_prefix,
 
     if not force_update:
         # Initialize Postgres connection and cursor.
-        conn = psycopg2.connect("")
+        conn = psycopg2.connect(**db_configs)
         cur = conn.cursor()
 
         # Check if the resource already exists and is updated.
@@ -62,11 +63,8 @@ def add_socrata_resource(metadata, app_token, bucket_name, blob_prefix,
         cur.close()
         conn.close()
 
-    # Initialize storage bucket.
-    bucket = CloudStorageBucket(bucket_name)
-
     # Upload the metadata.
-    metadata_blob = bucket.save_object(metadata,
+    metadata_blob = save_object(metadata, bucket_name,
             "/".join([blob_prefix, domain, uid, "metadata.json"]))
     logger.info("(domain={} id={}) Saved metadata.".format(domain, uid))
 
@@ -76,8 +74,9 @@ def add_socrata_resource(metadata, app_token, bucket_name, blob_prefix,
     resource_blob_name = "/".join([blob_prefix, domain, uid, "resource.avro"])
     try:
         records = JSON2AvroRecords(socrata_records(original_url, app_token))
-        resource_blob = bucket.save_avro_records(resource_blob_name,
-                records.schema, records.get(), codec="snappy")
+        resource_blob = save_avro_records(records.schema, records.get(), 
+                bucket_name, resource_blob_name,
+                codec="snappy")
     except Exception as e:
         logger.warning("(domain={} id={}) Failed to save resource from {}: {}".\
                 format(domain, id, original_url, e))
@@ -86,7 +85,7 @@ def add_socrata_resource(metadata, app_token, bucket_name, blob_prefix,
             format(domain, uid, original_url, resource_blob_name))
 
     # Initialize Postgres connection and cursor for registering resource.
-    conn = psycopg2.connect("")
+    conn = psycopg2.connect(**db_configs)
     cur = conn.cursor()
 
     # Register this resource.
@@ -173,7 +172,7 @@ def _process_socrata_raw_metadata(discovery_api_url, page_size, token):
 
 
 def _get_valid_socrata_app_token():
-    conn = psycopg2.connect("")
+    conn = psycopg2.connect(**db_configs)
     cur = conn.cursor()
     cur.execute("SELECT token FROM findopendata.socrata_app_tokens "
             "WHERE valid = true ORDER BY random() LIMIT 1")
@@ -188,8 +187,7 @@ def _get_valid_socrata_app_token():
 @app.task(ignore_result=True)
 def add_socrata_discovery_apis(force_update):
     """Add Socrata Discovery API endpoints to the crawler."""
-    settings = get_settings()
-    conn = psycopg2.connect("")
+    conn = psycopg2.connect(**db_configs)
     cur = conn.cursor()
     cur.execute("SELECT url "
             "FROM findopendata.socrata_discovery_apis WHERE enabled = true")
@@ -197,8 +195,9 @@ def add_socrata_discovery_apis(force_update):
     cur.close()
     conn.close()
     for api_url in api_urls:
-        add_socrata_resources_from_api.delay(api_url, settings["bucket_name"],
-                settings["socrata_blob_prefix"], force_update)
+        add_socrata_resources_from_api.delay(api_url, 
+                gcp_configs.get("bucket_name"),
+                crawler_configs.get("socrata_blob_prefix"), force_update)
         logger.info("Adding Socrata Discovery API {} to the crawler".format(
             api_url))
 

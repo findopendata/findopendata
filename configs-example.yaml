@@ -1,0 +1,29 @@
+# Google Cloud settings
+gcp:
+  project_name: 
+  project_id: 
+  # Service account key file local location.
+  service_account_file: 
+  # Cloud Storage bucket for storing dataset files.
+  bucket_name: 
+
+# PostgreSQL connection settings
+postgres:
+  host: 127.0.0.1
+  port: 5432
+  dbname: 
+  user: 
+  password: 
+  sslmode: disable
+
+# Celery settings
+celery:
+  broker: amqp://guest@localhost:5672/
+
+# Crawler settings
+crawler:
+  working_dir: /tmp
+  # The blob name prefix (i.e., top-level folder) for CKAN datasets.
+  ckan_blob_prefix: ckan
+  # The blob name prefix (i.e., top-level folder) for Socrata datasets.
+  socrata_blob_prefix: socrata

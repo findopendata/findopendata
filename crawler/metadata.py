@@ -7,7 +7,8 @@ import spacy
 from bs4 import BeautifulSoup
 
 from .celery import app
-from .storage import CloudStorageBucket
+from .storage import get_object
+from .settings import db_configs
 
 
 logger = get_task_logger(__name__)
@@ -37,11 +38,10 @@ def index_ckan_package(
             sketching.
     """
     # Get package metadata
-    storage = CloudStorageBucket(bucket_name)
-    package = storage.get_object(package_blob_name)
+    package = get_object(bucket_name, package_blob_name)
 
     # Get connection.
-    conn = psycopg2.connect("")
+    conn = psycopg2.connect(**db_configs)
     # Get CKAN resources
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("""SELECT key, filename, resource_blob, file_size, raw_metadata
@@ -52,10 +52,10 @@ def index_ckan_package(
     # Parse package metadata
     created = package.get("metadata_created", None)
     modified = package.get("metadata_modified", None)
-    title = BeautifulSoup(package.get("title", "")).get_text()
+    title = BeautifulSoup(package.get("title", ""), "html.parser").get_text()
     title_spacy = nlp(title).to_json()
     name = package.get("name", None)
-    description = BeautifulSoup(package.get("notes", "")).get_text()
+    description = BeautifulSoup(package.get("notes", ""), "html.parser").get_text()
     description_spacy = nlp(description).to_json()
     tags = [tag["name"] for tag in package.get("tags", []) if "name" in tag]
     license_title = package.get("license_title", None)
@@ -206,13 +206,14 @@ def index_ckan_package_file(
     created = raw_metadata.get("created", None)
     modified = raw_metadata.get("last_modified", None)
     name = raw_metadata.get("name", None)
-    description = BeautifulSoup(raw_metadata.get("description", "")).get_text()
+    description = BeautifulSoup(raw_metadata.get("description", ""), 
+            "html.parser").get_text()
     description_spacy = nlp(description).to_json()
     original_url = raw_metadata.get("url", None)
     file_format = raw_metadata.get("format", None)
 
     # Get connection.
-    conn = psycopg2.connect("")
+    conn = psycopg2.connect(**db_configs)
     # Get CKAN resources
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute("""INSERT INTO findopendata.package_files

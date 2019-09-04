@@ -9,6 +9,7 @@ import cchardet as chardet
 from django.utils.text import get_valid_filename
 from contextlib import contextmanager
 
+
 content_type_re = re.compile(r"^[^/]+/[^/]+$")
 
 

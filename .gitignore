@@ -136,3 +136,5 @@ env-localhost.sh
 # Visual Studio Code
 .vscode
 
+# Configurations
+configs.yaml

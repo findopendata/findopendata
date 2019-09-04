@@ -10,22 +10,22 @@ from psycopg2.extras import Json, RealDictCursor
 from celery.utils.log import get_task_logger
 
 from .celery import app
-from .storage import CloudStorageBucket
+from .storage import save_file, save_object
 from .download import download_to_local
 from .util import temporary_directory, get_safe_filename
 from .zip import is_zipfile, unzip
-from .settings import get_settings
+from .settings import crawler_configs, db_configs, gcp_configs
 from .csv import csv2json
 from .avro import JSON2AvroRecords
 
 
-# The directory for working on resource download.
-working_dir = os.getenv("FINDOPENDATA_CRAWLER_WDIR", "tmp")
+# Working directory for tasks.
+working_dir = crawler_configs.get("working_dir", "tmp")
 
-
+# Logger for tasks.
 logger = get_task_logger(__name__)
 
-
+# Dataset formats for which we have available parsers.
 accepted_resource_formats = ["csv",]
 
 
@@ -48,7 +48,7 @@ def add_ckan_package(package, endpoint, bucket_name, blob_prefix,
     package_id = package["id"]
 
     # Initialize Postgres connection.
-    conn = psycopg2.connect("")
+    conn = psycopg2.connect(**db_configs)
     cur = conn.cursor()
 
     # Checks if this version of package has been processed.
@@ -67,11 +67,8 @@ def add_ckan_package(package, endpoint, bucket_name, blob_prefix,
                             last_updated, last_registered))
                 return
 
-    # Initialize the storage bucket.
-    bucket = CloudStorageBucket(bucket_name)
-
     # Upload the package JSON.
-    package_blob = bucket.save_object(package,
+    package_blob = save_object(package, bucket_name,
             os.path.join(blob_prefix, endpoint, package_id, "package.json"))
     logger.info("(endpoint={} package={}) Saved package JSON.".format(endpoint,
         package_id))
@@ -135,7 +132,7 @@ def add_ckan_resource_no_download(package_key, resource):
     filename = None
 
     # Initialize Postgres connection
-    conn = psycopg2.connect("")
+    conn = psycopg2.connect(**db_configs)
     cur = conn.cursor()
 
     # Save this resource.
@@ -182,7 +179,7 @@ def add_ckan_resource(package_key, resource, bucket_name, package_path):
         return
 
     # Initialize Postgres connection for checking resource.
-    conn = psycopg2.connect("")
+    conn = psycopg2.connect(**db_configs)
     cur = conn.cursor()
 
     # Check if the same version of this resource has been processed.
@@ -202,9 +199,6 @@ def add_ckan_resource(package_key, resource, bucket_name, package_path):
     # Close database connection for checking resource.
     cur.close()
     conn.close()
-
-    # Initialize storage bucket.
-    bucket = CloudStorageBucket(bucket_name)
 
     # Download and upload the resource.
     logger.info("(package={} resource={}) Saving resource from {}".format(
@@ -230,7 +224,7 @@ def add_ckan_resource(package_key, resource, bucket_name, package_path):
             blob_name = os.path.join(package_path, resource_id, filename)
             try:
                 with open(os.path.join(parent_dir, filename), "rb") as f:
-                    resource_blob = bucket.save_file(f, blob_name,
+                    resource_blob = save_file(f, bucket_name, blob_name,
                             guess_content_bytes=1024*10)
             except Exception as e:
                 logger.warning("(package={} resource={}) Failed to save local "
@@ -244,7 +238,7 @@ def add_ckan_resource(package_key, resource, bucket_name, package_path):
             # Initialize Postgres connection for registering resource.
             # A new connection is created here to prevent the download
             # from hogging the connection pool.
-            conn = psycopg2.connect("")
+            conn = psycopg2.connect(**db_configs)
             cur = conn.cursor()
 
             # Register this resource.
@@ -299,10 +293,11 @@ def add_ckan_packages_from_api(api_url, endpoint, bucket_name, blob_prefix,
 @app.task(ignore_result=True)
 def add_ckan_apis(force_update):
     """Add CKAN API endpoints to the crawler."""
-    settings = get_settings()
-    conn = psycopg2.connect("")
+    conn = psycopg2.connect(**db_configs)
     cur = conn.cursor()
-    cur.execute("SELECT scheme, endpoint FROM findopendata.ckan_apis WHERE enabled = true")
+    cur.execute(r"""SELECT scheme, endpoint 
+                    FROM findopendata.ckan_apis 
+                    WHERE enabled = true""")
     def _get_api_url(scheme, endpoint):
         endpoint = endpoint.rstrip("/")
         return ("{}://{}".format(scheme, endpoint), endpoint)
@@ -312,8 +307,8 @@ def add_ckan_apis(force_update):
     for api_url, endpoint in api_urls:
         add_ckan_packages_from_api.delay(api_url=api_url,
                 endpoint=endpoint,
-                bucket_name=settings["bucket_name"],
-                blob_prefix=settings["ckan_blob_prefix"],
+                bucket_name=gcp_configs.get("bucket_name"),
+                blob_prefix=crawler_configs.get("ckan_blob_prefix"),
                 force_update=force_update)
         logger.info("Adding CKAN API {} to the crawler".format(api_url))
 

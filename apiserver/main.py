@@ -3,42 +3,57 @@ import os
 from flask import Flask, render_template, jsonify, request, abort, Response
 import flask.json as json
 from flask_cors import CORS
-import psycopg2.extras
-import psycopg2.pool
+from psycopg2.extras import RealDictCursor
+from psycopg2.pool import ThreadedConnectionPool
+from gcsfs.core import GCSFileSystem
 
 import settings
 import storage
 
-db_user = settings.get('CLOUD_SQL_USERNAME')
-db_password = settings.get('CLOUD_SQL_PASSWORD')
-db_name = settings.get('CLOUD_SQL_DATABASE_NAME')
-db_connection_name = settings.get('CLOUD_SQL_CONNECTION_NAME')
-bucket_name = settings.get('BUCKET_NAME')
 
 # When deployed to App Engine, the `GAE_ENV` environment variable will be
 # set to `standard`
 if os.environ.get('GAE_ENV') == 'standard':
+    configs = settings.from_datastore("Settings")
     # If deployed, use the local socket interface for accessing Cloud SQL
-    host = '/cloudsql/{}'.format(db_connection_name)
+    db_host = '/cloudsql/{}'.format(configs.get("CLOUD_SQL_CONNECTION_NAME"))
+    db_user = configs.get("CLOUD_SQL_USERNAME")
+    db_password = configs.get('CLOUD_SQL_PASSWORD')
+    db_name = configs.get('CLOUD_SQL_DATABASE_NAME')
+    bucket_name = configs.get('BUCKET_NAME')
+    db_config = {
+        'user': db_user,
+        'password': db_password,
+        'dbname': db_name,
+        'host': db_host
+    }
+    gcsfs_token = "cloud"
     allowed_origins = ["https://findopendata.com"]
 else:
     # If running locally, use the TCP connections instead
     # Set up Cloud SQL Proxy (cloud.google.com/sql/docs/mysql/sql-proxy)
     # so that your application can use 127.0.0.1:3306 to connect to your
     # Cloud SQL instance
-    host = '127.0.0.1'
+    configs = settings.from_yaml(os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), 
+        os.path.pardir,
+        "configs.yaml"))
+    db_config = configs.get("postgres")
+    gcp_config = configs.get("gcp")
+    bucket_name = gcp_config.get("bucket_name")
+    gcsfs_token = gcp_config.get("service_account_file")
     allowed_origins = ["http://localhost:3000"]
 
-db_config = {
-    'user': db_user,
-    'password': db_password,
-    'database': db_name,
-    'host': host
-}
 
-cnxpool = psycopg2.pool.ThreadedConnectionPool(minconn=1, maxconn=3,
-                                               **db_config)
+# Postgres connection pool.
+cnxpool = ThreadedConnectionPool(minconn=1, maxconn=3, **db_config)
 
+
+# Cloud Storage filesystem interface. 
+fs = GCSFileSystem(access="read_only", token=gcsfs_token, check_connection=True)
+
+
+# Flask app.
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": allowed_origins}})
 
@@ -158,7 +173,7 @@ def _execute_similar_packages(cur, ids, original_hosts=[], limit=50):
 
 _original_hosts = []
 cnx = cnxpool.getconn()
-with cnx.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+with cnx.cursor(cursor_factory=RealDictCursor) as cursor:
     cursor.execute(r"""SELECT DISTINCT 
                     original_host, 
                     original_host_display_name, 
@@ -181,7 +196,7 @@ def keyword_search():
         return jsonify([])
     original_host_filter = tuple(request.args.getlist('original_host'))
     cnx = cnxpool.getconn()
-    with cnx.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+    with cnx.cursor(cursor_factory=RealDictCursor) as cursor:
         _execute_keyword_search(cursor, query, original_host_filter)
         results = cursor.fetchall()
     cnxpool.putconn(cnx)
@@ -195,7 +210,7 @@ def similar_packages():
         return jsonify([])
     original_host_filter = tuple(request.args.getlist('original_host'))
     cnx = cnxpool.getconn()
-    with cnx.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+    with cnx.cursor(cursor_factory=RealDictCursor) as cursor:
         _execute_similar_packages(cursor, package_ids, original_host_filter)
         results = cursor.fetchall()
     cnxpool.putconn(cnx)
@@ -205,12 +220,12 @@ def similar_packages():
 @app.route('/api/package/<uuid:package_id>', methods=['GET'])
 def package(package_id):
     cnx = cnxpool.getconn()
-    with cnx.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+    with cnx.cursor(cursor_factory=RealDictCursor) as cursor:
         _execute_get_package_detailed(cursor, package_id=package_id)
         package = cursor.fetchone()
         if package is None:
             abort(404)
-    with cnx.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+    with cnx.cursor(cursor_factory=RealDictCursor) as cursor:
         cursor.execute(r"""SELECT 
                     id, 
                     created, 
@@ -233,7 +248,7 @@ def package(package_id):
 @app.route('/api/package-file/<uuid:file_id>', methods=['GET'])
 def package_file(file_id):
     cnx = cnxpool.getconn()
-    with cnx.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+    with cnx.cursor(cursor_factory=RealDictCursor) as cursor:
         cursor.execute(r"""SELECT 
                     package_key, 
                     created, 
@@ -248,7 +263,7 @@ def package_file(file_id):
         package_file = cursor.fetchone()
         if package_file is None:
             abort(404)
-    with cnx.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+    with cnx.cursor(cursor_factory=RealDictCursor) as cursor:
         _execute_get_package_brief(cursor, package_key=package_file["package_key"])
         package = cursor.fetchone()
         if package is None:
@@ -263,7 +278,7 @@ def package_file(file_id):
 @app.route('/api/package-file-data/<uuid:file_id>', methods=['GET'])
 def package_file_data(file_id):
     cnx = cnxpool.getconn()
-    with cnx.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+    with cnx.cursor(cursor_factory=RealDictCursor) as cursor:
         cursor.execute(r"""select format, blob_name
                 from findopendata.package_files
                 where id = %s""", (str(file_id),))
@@ -274,7 +289,7 @@ def package_file_data(file_id):
     # load data file from blob
     nrows = request.args.get('nrows', default=20, type=int)
     try:
-        headers, records = storage.read_package_file(package_file["format"],
+        headers, records = storage.read_package_file(fs, package_file["format"],
                 bucket_name, package_file["blob_name"], nrows)
         return app.response_class(
                 response=json.dumps({

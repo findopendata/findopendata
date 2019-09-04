@@ -1,5 +1,6 @@
 requests>=2.22.0
 google-cloud-storage>=1.17.0
+google-auth>=1.6.3
 gcsfs>=0.3.0
 celery>=4.3.0
 psycopg2-binary>=2.7.5
@@ -15,6 +16,7 @@ pyfarmhash>=0.2.2
 cchardet>=2.1.4
 spacy>=2.1.8
 beautifulsoup4>=4.8.0
+pyyaml>=5.1.2
 
 # RFC6266 custom package
 https://github.com/ekzhu/rfc6266/archive/0.0.6.op1.tar.gz

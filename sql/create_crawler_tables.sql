@@ -1,19 +1,5 @@
 CREATE SCHEMA IF NOT EXISTS findopendata;
 
-/* The settings key-value pairs of crawlers.
- */
-CREATE TABLE IF NOT EXISTS findopendata.crawler_settings (
-    key text PRIMARY KEY,
-    value text,
-    help text
-);
-CREATE UNIQUE INDEX IF NOT EXISTS crawler_settings_idx ON findopendata.crawler_settings (key);
-INSERT INTO findopendata.crawler_settings (key, help) VALUES 
-('bucket_name', 'The Google Cloud storage bucket name'), 
-('ckan_blob_prefix', 'The blob name prefix (i.e., top-level folder) for CKAN datasets'), 
-('socrata_blob_prefix', 'The blob name prefix (i.e., top-level folder) for Socrata datasets')
-ON CONFLICT DO NOTHING;
-
 /* The registry of all Socrata Discovery API endpoints.
  */
 CREATE TABLE IF NOT EXISTS findopendata.socrata_discovery_apis (

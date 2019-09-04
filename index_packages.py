@@ -5,7 +5,7 @@ import collections
 
 import psycopg2
 
-from crawler.settings import get_settings
+from crawler.settings import db_configs, gcp_configs
 from crawler.metadata import index_ckan_package
 
 _endpoints = (
@@ -19,11 +19,10 @@ if __name__ == "__main__":
             "dumps to make the packages searchable.")
     args = parser.parse_args(sys.argv[1:])
 
-    settings = get_settings()
-    bucket_name = settings["bucket_name"]
+    bucket_name = gcp_configs.get("bucket_name")
 
     ckan_packages = collections.deque([])
-    conn = psycopg2.connect("")
+    conn = psycopg2.connect(**db_configs)
     cur = conn.cursor()
     cur.execute("""SELECT 
                 b.key, b.package_blob,

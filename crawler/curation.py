@@ -3,16 +3,19 @@ import shutil
 import gzip
 
 from celery.utils.log import get_task_logger
-from gcsfs.core import GCSFileSystem
 from google.cloud import storage
 
 from .celery import app
 from .util import temporary_directory
+from .settings import crawler_configs
+from .storage import gcs_client, gcs_fs
 
 
 # The directory for working on resource download.
-working_dir = os.getenv("FINDOPENDATA_CRAWLER_WDIR", "tmp")
+working_dir = crawler_configs.get("working_dir", "tmp")
 
+
+# Logger for tasks.
 logger = get_task_logger(__name__)
 
 
@@ -35,23 +38,22 @@ def gzip_compress_blob(bucket_name, blob_name, compressed_blob_name=None):
     tmp_blob_path = os.path.join(os.path.dirname(blob_path),
             "~{}".format(os.path.basename(blob_path)))
     # Check if the file is already gzip-compressed
-    fs = GCSFileSystem()
-    encoding = fs.info(blob_path).get("contentEncoding", None)
+    encoding = gcs_fs.info(blob_path).get("contentEncoding", None)
     if encoding is not None and encoding == "gzip":
         logger.error("{} is already gzip-compressed".format(blob_path))
         return False
     # Compress blob
     try:
-        with fs.open(blob_path, "rb") as input_file, \
-                fs.open(tmp_blob_path, "wb") as output_file:
+        with gcs_fs.open(blob_path, "rb") as input_file, \
+                gcs_fs.open(tmp_blob_path, "wb") as output_file:
             with gzip.open(output_file, "wb") as of:
                 shutil.copyfileobj(input_file, of)
-        fs.mv(tmp_blob_path, compressed_blob_path)
+        gcs_fs.mv(tmp_blob_path, compressed_blob_path)
     except Exception as e:
         logger.error("Compressing {} failed due to {}".format(blob_path, e))
         return False
     # Update content encoding of the blob
-    fs.setxattrs(compressed_blob_path, content_encoding="gzip")
+    gcs_fs.setxattrs(compressed_blob_path, content_encoding="gzip")
     logger.info("Compressing {} successful")
     return True
 
@@ -70,8 +72,7 @@ def gzip_decompress_blob(bucket_name, blob_name, output_blob_name=None):
         output_blob_name = blob_name
     with temporary_directory(working_dir) as parent_dir:
         # Get connection
-        client = storage.Client()
-        bucket = client.bucket(bucket_name)
+        bucket = gcs_client.bucket(bucket_name)
         blob = bucket.get_blob(blob_name)
         if blob is None:
             logger.error("{} does not exist".format(blob_name))
