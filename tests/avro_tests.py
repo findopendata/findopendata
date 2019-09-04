@@ -3,7 +3,7 @@ import unittest
 
 import fastavro
 
-from crawler.avro import JSON2AvroRecords
+from crawler.parsers.avro import JSON2AvroRecords
 
 
 records = [

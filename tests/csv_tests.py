@@ -1,7 +1,7 @@
 import unittest
 import io
 
-from crawler.csv import csv2json
+from crawler.parsers.csv import csv2json
 
 TEST_CSV_1 = """Column1,Column2,Column3
 1,2,3
