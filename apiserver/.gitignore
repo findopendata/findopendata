@@ -127,3 +127,7 @@ dmypy.json
 pyenv
 
 findopendata-*.json
+
+# Parsers directory -- this is copied from parent
+parsers
+

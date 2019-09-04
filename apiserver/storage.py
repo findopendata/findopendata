@@ -1,4 +1,6 @@
-from crawler.csv import csv2json
+import os
+
+from parsers.csv import csv2json
 
 
 def _read_csv(fs, bucket_name, blob_name, 

@@ -2,7 +2,7 @@ import io
 
 import simplejson as json
 
-from .util import guess_encoding_from_buffer
+from .encoding import guess_encoding_from_buffer
 
 
 def jsonl2json(fileobj_binary, guess_encoding_bytes=8192):

@@ -3,7 +3,7 @@ import io
 import itertools
 from collections import OrderedDict
 
-from .util import guess_encoding_from_buffer
+from .encoding import guess_encoding_from_buffer
 
 
 _sniffer = csv.Sniffer()

@@ -9,9 +9,9 @@ from celery.utils.log import get_task_logger
 from .celery import app
 from .settings import db_configs
 from .storage import gcs_fs
-from .csv import csv2json
-from .avro import avro2json
-from .jsonl import jsonl2json
+from .parsers.csv import csv2json
+from .parsers.avro import avro2json
+from .parsers.jsonl import jsonl2json
 
 
 logger = get_task_logger(__name__)

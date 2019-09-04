@@ -15,8 +15,8 @@ from .download import download_to_local
 from .util import temporary_directory, get_safe_filename
 from .zip import is_zipfile, unzip
 from .settings import crawler_configs, db_configs, gcp_configs
-from .csv import csv2json
-from .avro import JSON2AvroRecords
+from .parsers.csv import csv2json
+from .parsers.avro import JSON2AvroRecords
 
 
 # Working directory for tasks.

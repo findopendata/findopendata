@@ -8,7 +8,7 @@ from celery.utils.log import get_task_logger
 
 from .celery import app
 from .storage import save_avro_records, save_object
-from .avro import JSON2AvroRecords
+from .parsers.avro import JSON2AvroRecords
 from .settings import crawler_configs, db_configs, gcp_configs
 
 
