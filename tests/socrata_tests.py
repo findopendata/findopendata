@@ -1,6 +1,6 @@
 import unittest
 
-from crawler.socrata_crawler import socrata_records
+from crawler.socrata import socrata_records
 
 class TestSocrataRecords(unittest.TestCase):
 

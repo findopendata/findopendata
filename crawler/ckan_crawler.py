@@ -10,6 +10,8 @@ from psycopg2.extras import Json, RealDictCursor
 from celery.utils.log import get_task_logger
 
 from .celery import app
+from .ckan import read_api, extract_timestamp_from_package, \
+    extract_timestamp_from_resource
 from .storage import save_file, save_object
 from .download import download_to_local
 from .util import temporary_directory, get_safe_filename
@@ -18,9 +20,6 @@ from .settings import crawler_configs, db_configs, gcp_configs
 from .parsers.csv import csv2json
 from .parsers.avro import JSON2AvroRecords
 
-
-# Working directory for tasks.
-working_dir = crawler_configs.get("working_dir", "tmp")
 
 # Logger for tasks.
 logger = get_task_logger(__name__)
@@ -60,7 +59,7 @@ def add_ckan_package(package, endpoint, bucket_name, blob_prefix,
         row = cur.fetchone()
         if row is not None:
             last_registered = row[0]
-            last_updated = _extract_timestamp_from_package(package)
+            last_updated = extract_timestamp_from_package(package)
             if last_updated is not None and last_updated <= last_registered:
                 logger.info("(endpoint={} package={}) Skipping (updated: {}, "
                         "registered: {})".format(endpoint, package_id,
@@ -189,7 +188,7 @@ def add_ckan_resource(package_key, resource, bucket_name, package_path):
     row = cur.fetchone()
     if row is not None:
         last_registered = row[0]
-        last_updated = _extract_timestamp_from_resource(resource)
+        last_updated = extract_timestamp_from_resource(resource)
         if last_updated is not None and last_updated <= last_registered:
             logger.info("(package={}, resource={}) Skipping (updated: {} "
                     "registered: {})".format(package_key, resource_id,
@@ -203,6 +202,7 @@ def add_ckan_resource(package_key, resource, bucket_name, package_path):
     # Download and upload the resource.
     logger.info("(package={} resource={}) Saving resource from {}".format(
         package_key, resource_id, original_url))
+    working_dir = crawler_configs.get("working_dir", "/tmp")
     with temporary_directory(working_dir) as parent_dir:
 
         # Download this resource.
@@ -283,7 +283,7 @@ def add_ckan_packages_from_api(api_url, endpoint, bucket_name, blob_prefix,
             registered time will be skipped.
     """
     logger.info("(api_url={})".format(api_url))
-    packages = read_ckan_api(api_url)
+    packages = read_api(api_url)
     for package in packages:
         add_ckan_package.delay(package, endpoint=endpoint, 
                 bucket_name=bucket_name, blob_prefix=blob_prefix, 
@@ -311,74 +311,3 @@ def add_ckan_apis(force_update):
                 blob_prefix=crawler_configs.get("ckan_blob_prefix"),
                 force_update=force_update)
         logger.info("Adding CKAN API {} to the crawler".format(api_url))
-
-
-def read_ckan_api(api_url, start=0, page_size=50, retries=3,
-        wait_between_retries=5):
-    """Scrolls through the CKAN package_search API to obtain packages.
-
-    Args:
-        api_url: the CKAN API endpoint URL (i.e., https://data.gov.uk).
-        start: the starting record index.
-        page_size: the number of records per each request.
-        retries: the number of retries when an error is encountered.
-        wait_between_retries: the seconds to wait between retries.
-    """
-    url = api_url.rstrip("/") + "/api/3/action/package_search"
-    sess = requests.session()
-    while True:
-        resp = sess.get(url, params={"start" : start,
-                                     "rows"  : page_size})
-        try:
-            resp.raise_for_status()
-        except Exception as e:
-            if retries == 0:
-                raise e
-            retries -= 1
-            time.sleep(wait_between_retries)
-            continue
-        results = resp.json()["result"]["results"]
-        if len(results) == 0:
-            break
-        for package in results:
-            yield package
-        start += page_size
-
-
-def _parse_ckan_timestamp(timestamp_str):
-    try:
-        timestamp = dateutil.parser.parse(timestamp_str)
-        # Set tzinfo to UTC when not available
-        if timestamp.tzinfo is None:
-            timestamp = timestamp.replace(tzinfo=dateutil.tz.tzutc())
-    except ValueError:
-        return None
-    return timestamp
-
-
-def _extract_timestamp_from_package(package):
-    package_modified = None
-    if "modified" in package:
-        package_modified = package["modified"]
-    elif "metadata_modified" in package:
-        package_modified = package["metadata_modified"]
-    elif "metadata_created" in package:
-        package_modified = package["metadata_created"]
-    if package_modified is None:
-        return None
-    return _parse_ckan_timestamp(package_modified)
-
-
-def _extract_timestamp_from_resource(resource):
-    resource_modified = None
-    if "created" in resource and resource["created"] is not None:
-        resource_modified = resource["created"]
-    if "revision_timestamp" in resource and \
-            resource["revision_timestamp"] is not None:
-        resource_modified = resource["revision_timestamp"]
-    if "last_modified" in resource and resource["last_modified"] is not None:
-        resource_modified = resource["last_modified"]
-    if resource_modified is None:
-        return None
-    return _parse_ckan_timestamp(resource_modified)
-
