@@ -15,8 +15,8 @@ _endpoints = (
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-            description="Extract and index package metadata from crawler "
-            "dumps to make the packages searchable.")
+            description="Extract and generate package metadata and "
+            "make the packages searchable.")
     args = parser.parse_args(sys.argv[1:])
 
     bucket_name = gcp_configs.get("bucket_name")

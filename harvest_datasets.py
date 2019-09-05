@@ -7,7 +7,7 @@ from crawler.socrata_crawler import add_socrata_discovery_apis
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-            description="Start crawling tasks.")
+            description="Start dataset harvesting tasks.")
     parser.add_argument("-u", "--force-update", action='store_true',
             help="Whether to force update a dataset even if the modified time "
                 "is prior to the last updated time.")

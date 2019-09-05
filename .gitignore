@@ -139,3 +139,4 @@ env-localhost.sh
 # Configurations
 configs.yaml
 
+.DS_Store

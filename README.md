@@ -3,26 +3,48 @@
 [![Build Status](https://travis-ci.org/findopendata/findopendata.svg?branch=master)](https://travis-ci.org/findopendata/findopendata)
 
 This is the source code repository for [findopendata.com](https://findopendata.com).
+The project goal is to make a search engine for Open Data with rich 
+features beyond simple keyword search. For example:
+    
+ * Auto grouping of relevant datasets that should be consumed together
+ * Time and location-based query of datasets
+ * Content-based search such as finding joinable tables
+ * Dataset versioning
+
+**This is a work in progress.**
 
 ![Screenshot](screenshot.png)
+
+## System Overview
+
+The Find Open Data system has three components:
+
+1. **Frontend**: a React app, located in `frontend`.
+2. **API Server**: a Flask web server, located in `apiserver`.
+3. **Crawler**: a set of [Celery](https://docs.celeryproject.org/en/latest/userguide/tasks.html) tasks, located in `crawler`. 
+
+Both the Frontend and the API Server can be deployed to 
+[Google App Engine (standard)](https://cloud.google.com/appengine/docs/standard/).
+
+We also use two external storage systems for persistence:
+
+1. A PostgreSQL database for storing dataset registry, metadata and the search index.
+2. A Google Cloud Storage Bucket for storing dataset files.
+
+![System Overview](system_overview.png)
 
 ## Development Guide
 
 To develop locally, you need the following:
 
-* PostgreSQL 9.6 or above (or Cloud SQL Proxy)
+* PostgreSQL 9.6 or above
 * RabbitMQ
 * A Google Cloud project with Cloud Storage enabled.
-* Google Cloud service account key file (JSON formatted) with access to
-Cloud Storage bucket
+* Google Cloud service account key file (JSON formatted) with read and write access to Cloud Storage bucket
 
 **TODO**: get rid of Google Cloud requirement for local development.
 
-### System Overview
-
-![System Overview](system_overview.png)
-
-### Set up local develop environment
+### Set up local development environment
 
 #### 1. Install PostgreSQL
 
@@ -50,7 +72,7 @@ On Mac OS X you can [install it using Homebrew](https://www.rabbitmq.com/install
 
 Run the RabbitMQ server after finishing install.
 
-#### 3. Python Setups
+#### 3. Python Environment
 
 We use virtualenv for Python development and dependencies:
 ```
@@ -69,7 +91,9 @@ The crawler has a set of [Celery](http://www.celeryproject.org/) tasks that
 runs in parallel.
 It uses the RabbitMQ server to manage and queue the tasks.
 
-### Data sources
+### Setup Crawler
+
+#### Data Sources (CKAN and Socrata APIs)
 
 The crawler uses PostgreSQL to maintain all data sources.
 CKAN sources are maintained in the table `findopendata.ckan_apis`.
@@ -78,11 +102,23 @@ Socrata Discovery APIs are maintained in the table
 The SQL script `sql/create_crawler_tables.sql` has already created some 
 initial sources for you.
 
-### Socrata App Tokens
+To show the CKAN APIs currently available to the crawler and whether they
+are enabled:
+```sql
+SELECT * FROM findopendata.ckan_apis;
+```
+
+To add a new CKAN API and enable it:
+```sql
+INSERT INTO findopendata.ckan_apis (endpoint, name, region, enabled) VALUES
+('catalog.data.gov', 'US Open Data', 'United States', true);
+```
+
+#### Socrata App Tokens
 
 Add your [Socrata app tokens](https://dev.socrata.com/docs/app-tokens.html) 
 to the table `findopendata.socrata_app_tokens`.
-The app tokens are required for downloading datasets from Socrata APIs.
+The app tokens are required for harvesting datasets from Socrata APIs.
 
 For example:
 ```sql
@@ -91,21 +127,37 @@ INSERT INTO findopendata.socrata_app_tokens (token) VALUES ('<your app token>');
 
 ### Run Crawler
 
-Celery workers must be started first.
+[Celery workers](https://docs.celeryproject.org/en/latest/userguide/workers.html) 
+are processes that fetch crawler tasks from RabbitMQ and execute them.
+The worker processes must be started before starting any tasks.
 
 For example:
 ```
 celery -A crawler worker -l info -Ofair
 ```
 
-The following scripts are used to kick-start different stages of crawler tasks:
+#### Harvest Datasets
 
-1. `crawl.py` is used for starting data harvesting tasks that download 
+Run `harvest_datasets.py` to start data harvesting tasks that download 
 datasets from various data sources. Downloaded datasets will be stored on
 a Google Cloud Storage bucket (set in `configs.yaml`), and registed in 
-Postgres tables `findopendata.ckan_packages` and `findopendata.socrata_resources`.
-2. `index_packages.py` is used for generating metadata for downloaded
-datasets. It generate metadata by extracting titles, description etc. and 
+Postgres tables 
+`findopendata.ckan_packages` and `findopendata.socrata_resources`.
+
+#### Generate Metadata
+
+Run `generate_metadata.py` to start metadata generation tasks for 
+downloaded and registed datasets in 
+`findopendata.ckan_packages` and `findopendata.socrata_resources`
+tables.
+
+It generates metadata by extracting titles, description etc. and 
 annotates them with entities for enrichment.
-The generated metadata is stored in table `findopendata.packages`, which is 
+The metadata is stored in table `findopendata.packages`, which is 
 also used by the API server to serve the frontend.
+
+#### Index Dataset Content
+
+Run `index_dataset_content.py` to start tasks for indexing dataset
+content (i.e., data values, columns, and records) and make them
+available for content-based search.
