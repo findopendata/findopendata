@@ -1,5 +1,7 @@
 # Find Open Data
 
+[![Build Status](https://travis-ci.org/findopendata/findopendata.svg?branch=master)](https://travis-ci.org/findopendata/findopendata)
+
 This is the source code repository for [findopendata.com](https://findopendata.com).
 
 ![Screenshot](screenshot.png)
