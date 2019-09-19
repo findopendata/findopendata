@@ -10,7 +10,7 @@ app = Celery("crawler",
                 "crawler.ckan_crawler",
                 "crawler.socrata_crawler",
                 "crawler.curation",
-                "crawler.sketch",
+                "crawler.indexing",
                 "crawler.metadata",
                 ])
 

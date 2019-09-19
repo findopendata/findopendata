@@ -186,10 +186,6 @@ def index_ckan_package_file(
     """Register the CKAN resource into the package_files table by doing the
     following:
         1. Extract metadata such as name and description from the source JSON.
-        2. [TODO] Detect if this package file is well-formated.
-        3. [TODO] Extract column headers and data types of columns.
-        4. [TODO] Extract entities and word embeddings from column headers
-            for metadata enrichment.
 
     Args:
         crawler_resource_key: the primary key of the ckan_resources table.

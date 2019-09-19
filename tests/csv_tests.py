@@ -56,7 +56,7 @@ class TestCSV2JSON(unittest.TestCase):
         self.assertEqual(records[2], {"ColumnX": "6", "ColumnY": "34", "ColumnZ": "123"})
 
         f = io.BytesIO(TEST_CSV_3.encode("iso-8859-1"))
-        records = list(csv2json(f, header_prefix="C"))
+        records = list(csv2json(f, allow_no_header=True, header_prefix="C"))
         self.assertEqual(records[0], {"C0": "4", "C1": "1", "C2": "3"})
 
 

@@ -19,15 +19,19 @@ def _is_number(x):
 
 
 def csv2json(fileobj_binary, guess_encoding_bytes=8192, guess_header_rows=10,
-        header_prefix="Column-"):
+        allow_no_header=False, header_prefix="Column-",
+        min_header_count=2):
     """Read a CSV file and get an iterator of JSON records as Python dictionaries.
 
     Args:
         fileobj_binary: a binary file object that supports seek().
         guess_encoding_bytes: the number of bytes in the beginning of the file
             to be used to guess the text encoding.
+        allow_no_header: whether to raise ValueError if no header row was found.
         header_prefix: the string prefix used for assigning headers
             to CSV tables without a header row.
+        min_header_count: the minimum number of headers to consider a valid
+            CSV table.
 
     Returns: an iterator of JSON records as Python dictionaries.
     """
@@ -58,9 +62,14 @@ def csv2json(fileobj_binary, guess_encoding_bytes=8192, guess_header_rows=10,
             break
     # Assign default headers if none found
     if headers is None:
+        if not allow_no_header:
+            raise ValueError("No header row found.")
         ncol = max(len(row) for row in head)
         headers = ["{}{}".format(header_prefix, i) for i in range(ncol)]
         header_row_pos = -1
+    if len(headers) < min_header_count:
+        raise ValueError("Not enough header (min {}) to be valid".format(
+                min_header_count))
 
     # Yield records.
     rows = itertools.chain(head[header_row_pos+1:], reader)
