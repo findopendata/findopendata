@@ -10,7 +10,9 @@ from crawler.indexing import sketch_package_file
 
 
 _original_hosts = (
+        "open.canada.ca/data/en",
         "catalog.data.gov",
+        "data.gov.uk",
         )
 
 

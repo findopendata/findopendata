@@ -11,6 +11,7 @@ from crawler.metadata import index_ckan_package
 _endpoints = (
         "open.canada.ca/data/en",
         "catalog.data.gov",
+        "data.gov.uk",
 )
 
 if __name__ == "__main__":
