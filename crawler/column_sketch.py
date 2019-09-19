@@ -6,7 +6,7 @@ from datasketch import MinHash, HyperLogLogPlusPlus
 
 
 spacy_model = "en_vectors_web_lg"
-nlp = spacy.load(spacy_model)
+nlp = spacy.load(spacy_model, disable=["tagger", "parser", "ner"])
 spacy_vector_dim = 300
 
 
@@ -26,9 +26,16 @@ class ColumnSketch:
         column_name: the extracted column name.
         minhash_size: the number of permutations to use for MinHash.
         minhash_seed: the random seed used by MinHash.
+        hyperloglog_p: the precision parameter used by HyperLogLog.
         sample_size: the size of sample to be kept.
     """
-    def __init__(self, column_name, minhash_size, minhash_seed, sample_size):
+    def __init__(self, column_name, 
+        minhash_size=256, 
+        minhash_seed=43, 
+        hyperloglog_p=8,
+        sample_size=100,
+        enable_word_vector_data=False,
+        ):
         self._column_name = column_name
         self._sample = set([])
         self._sample_size = sample_size
@@ -38,7 +45,9 @@ class ColumnSketch:
         self._numeric_count = 0
         self._minhash = MinHash(num_perm=minhash_size, seed=minhash_seed,
                 hashfunc=self._hashfunc32)
-        self._hhl = HyperLogLogPlusPlus(hashfunc=self._hashfunc64) 
+        self._hhl = HyperLogLogPlusPlus(p=hyperloglog_p,
+                hashfunc=self._hashfunc64) 
+        self._enabled_word_vec_data = enable_word_vector_data
         self._sum_vector = np.zeros(spacy_vector_dim, dtype=np.float32)
 
     def _hashfunc32(self, str_value):
@@ -127,6 +136,8 @@ class ColumnSketch:
     def word_vector_data(self):
         """The mean word embedding vector of all data values as a list.
         """
+        if not self._enabled_word_vec_data:
+            return None
         if self.in_vocabulary_count == 0:
             return None
         vector = self._sum_vector / np.float32(self.in_vocabulary_count)
@@ -172,6 +183,9 @@ class ColumnSketch:
         self._minhash.update(value)
         # Update the HyperLogLog sketch.
         self._hhl.update(value)
+        # Skip word vector extraction if not enabled.
+        if not self._enabled_word_vec_data:
+            return
         # Update the sum of word embeddings.
         vectors = [token.vector for token in nlp(value) if token.has_vector]
         if len(vectors) > 0:

@@ -3,8 +3,6 @@ import time
 
 import requests
 import urllib3
-import dateutil.parser
-import dateutil.tz
 import psycopg2
 from psycopg2.extras import Json, RealDictCursor
 from celery.utils.log import get_task_logger
@@ -64,6 +62,8 @@ def add_ckan_package(package, endpoint, bucket_name, blob_prefix,
                 logger.info("(endpoint={} package={}) Skipping (updated: {}, "
                         "registered: {})".format(endpoint, package_id,
                             last_updated, last_registered))
+                cur.close()
+                conn.close()
                 return
 
     # Upload the package JSON.
