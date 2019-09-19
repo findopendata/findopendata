@@ -28,6 +28,8 @@ class ColumnSketch:
         minhash_seed: the random seed used by MinHash.
         hyperloglog_p: the precision parameter used by HyperLogLog.
         sample_size: the size of sample to be kept.
+        enable_word_vector_data: whether to build word embedding vector for 
+            data values -- can be 10x more expensive.
     """
     def __init__(self, column_name, 
         minhash_size=256, 

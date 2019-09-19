@@ -16,8 +16,10 @@ from .column_sketch import ColumnSketch
 logger = get_task_logger(__name__)
 
 
-def _json_records_sketcher(records, **kwargs):
+def _json_records_sketcher(records, max_records=None, **kwargs):
     sketches = {}
+    if max_records is not None:
+        records = (record for record, _ in zip(records, range(max_records)))
     for record in records:
         for column_name, value in record.items():
             if column_name not in sketches:
@@ -26,19 +28,19 @@ def _json_records_sketcher(records, **kwargs):
     return sketches.values()
 
 
-def _csv_sketcher(fileobj_binary, **kwargs):
+def _csv_sketcher(fileobj_binary, max_records=None, **kwargs):
     records = csv2json(fileobj_binary)
-    return _json_records_sketcher(records, **kwargs)
+    return _json_records_sketcher(records, max_records, **kwargs)
 
 
-def _jsonl_sketcher(fileobj_binary, **kwargs):
+def _jsonl_sketcher(fileobj_binary, max_records=None, **kwargs):
     records = jsonl2json(fileobj_binary)
-    return _json_records_sketcher(records, **kwargs)
+    return _json_records_sketcher(records, max_records, **kwargs)
 
 
-def _avro_sketcher(fileobj_binary, **kwargs):
+def _avro_sketcher(fileobj_binary, max_records=None, **kwargs):
     records = avro2json(fileobj_binary)
-    return _json_records_sketcher(records, **kwargs)
+    return _json_records_sketcher(records, max_records, **kwargs)
 
 
 _sketchers = {
@@ -49,9 +51,16 @@ _sketchers = {
 
 
 @app.task(ignore_result=True)
-def sketch_package_file(package_file_key, last_modified,
-        bucket_name, blob_name, dataset_format,
-        minhash_size, minhash_seed, hyperloglog_p, sample_size,
+def sketch_package_file(package_file_key, 
+        last_modified,
+        bucket_name, 
+        blob_name, 
+        dataset_format,
+        max_records,
+        minhash_size, 
+        minhash_seed, 
+        hyperloglog_p, 
+        sample_size,
         enable_word_vector_data):
     """Generate column sketches of the table in the package file.
 
@@ -62,6 +71,7 @@ def sketch_package_file(package_file_key, last_modified,
         bucket_name: the Cloud Storage bucket that stores the package file.
         blob_name: the relative path to the blob of the package file.
         dataset_format: one of csv, jsonl, and avro.
+        max_records: the maximum number of records to sketch.
         minhash_size: the number of permutation (hash functions) to use for
             MinHash sketches.
         minhash_seed: the random seed for generating MinHash sketches'
@@ -105,6 +115,7 @@ def sketch_package_file(package_file_key, last_modified,
     try:
         with gcs_fs.open(blob_path, "rb") as input_file:
             sketches = sketcher(input_file, 
+                    max_records=max_records,
                     minhash_size=minhash_size, 
                     minhash_seed=minhash_seed,
                     hyperloglog_p=hyperloglog_p,
