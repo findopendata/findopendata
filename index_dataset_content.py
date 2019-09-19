@@ -9,13 +9,6 @@ from crawler.settings import db_configs, gcp_configs
 from crawler.indexing import sketch_package_file
 
 
-_original_hosts = (
-        "open.canada.ca/data/en",
-        "catalog.data.gov",
-        "data.gov.uk",
-        )
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
             description="Creating column sketches of all package files.")
@@ -29,15 +22,12 @@ if __name__ == "__main__":
     package_files = collections.deque([])
     conn = psycopg2.connect(**db_configs)
     cur = conn.cursor()
-    cur.execute(r"""SELECT f.key, f.blob_name, f.format 
+    cur.execute(r"""SELECT key, blob_name, format 
                     FROM 
-                    findopendata.package_files as f,
-                    findopendata.packages as p
+                    findopendata.package_files
                     WHERE 
-                    p.original_host in %s AND
-                    p.key = f.package_key AND
-                    f.blob_name IS NOT NULL
-                    """, (_original_hosts,))
+                    blob_name IS NOT NULL
+                    """)
     for row in cur:
         package_files.append(row)
     cur.close()
