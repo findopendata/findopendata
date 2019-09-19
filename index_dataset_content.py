@@ -31,7 +31,6 @@ if __name__ == "__main__":
                     findopendata.package_files
                     WHERE 
                     blob_name IS NOT NULL
-                    LIMIT 10
                     """)
     for row in cur:
         package_files.append(row)
