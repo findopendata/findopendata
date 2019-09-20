@@ -3,6 +3,7 @@ import random
 import cProfile
 
 from crawler.column_sketch import ColumnSketch
+from crawler.models import WordVectorModel as lm
 
 
 WORDS = ["english", "french", "spanish", "russian", "italian", "arabic", 
@@ -28,7 +29,8 @@ class TestColumnSketch(unittest.TestCase):
                 minhash_seed=43, 
                 hyperloglog_p=8,
                 sample_size=100, 
-                enable_word_vector_data=False
+                enable_word_vector_data=False,
+                model=lm,
                 )
         for word in TEST_COLUMN_1:
             sketch.update(word)
@@ -46,7 +48,8 @@ class TestColumnSketch(unittest.TestCase):
                 minhash_seed=43, 
                 hyperloglog_p=8,
                 sample_size=100, 
-                enable_word_vector_data=True
+                enable_word_vector_data=True,
+                model=lm,
                 )
         for word in TEST_COLUMN_1:
             sketch.update(word)

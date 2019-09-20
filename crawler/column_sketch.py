@@ -1,13 +1,9 @@
 import farmhash
 import simplejson as json
-import spacy
 import numpy as np
 from datasketch import MinHash, HyperLogLogPlusPlus
 
-
-spacy_model = "en_vectors_web_lg"
-nlp = spacy.load(spacy_model, disable=["tagger", "parser", "ner"])
-spacy_vector_dim = 300
+from .models import WordVectorModel
 
 
 def _is_number(x):
@@ -37,6 +33,7 @@ class ColumnSketch:
         hyperloglog_p=8,
         sample_size=100,
         enable_word_vector_data=False,
+        model=WordVectorModel,
         ):
         self._column_name = column_name
         self._sample = set([])
@@ -50,7 +47,8 @@ class ColumnSketch:
         self._hhl = HyperLogLogPlusPlus(p=hyperloglog_p,
                 hashfunc=self._hashfunc64) 
         self._enabled_word_vec_data = enable_word_vector_data
-        self._sum_vector = np.zeros(spacy_vector_dim, dtype=np.float32)
+        self._model = model
+        self._sum_vector = self._model.get_empty_word_vector()
 
     def _hashfunc32(self, str_value):
         return farmhash.hash32(str_value)
@@ -128,7 +126,7 @@ class ColumnSketch:
     def word_vector_column_name(self):
         """The word embedding vector of the column name as a list.
         """
-        doc = nlp(self.column_name)
+        doc = self._model.process(self.column_name)
         vectors = [token.vector for token in doc if token.has_vector]
         if len(vectors) == 0:
             return None
@@ -189,7 +187,8 @@ class ColumnSketch:
         if not self._enabled_word_vec_data:
             return
         # Update the sum of word embeddings.
-        vectors = [token.vector for token in nlp(value) if token.has_vector]
+        vectors = [token.vector for token in self._model.process(value) 
+                if token.has_vector]
         if len(vectors) > 0:
             self._sum_vector += np.sum(vectors, axis=0)
         else:

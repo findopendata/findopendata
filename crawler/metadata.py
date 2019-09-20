@@ -9,13 +9,10 @@ from bs4 import BeautifulSoup
 from .celery import app
 from .storage import get_object
 from .settings import db_configs
+from .models import LanguageModel as lm
 
 
 logger = get_task_logger(__name__)
-
-# Load Spacy NLP model
-# TODO: handle different languages other than English.
-nlp = spacy.load("en_core_web_sm")
 
 
 @app.task(ignore_result=True)
@@ -53,10 +50,10 @@ def index_ckan_package(
     created = package.get("metadata_created", None)
     modified = package.get("metadata_modified", None)
     title = BeautifulSoup(package.get("title", ""), "html.parser").get_text()
-    title_spacy = nlp(title).to_json()
+    title_spacy = lm.process(title).to_json()
     name = package.get("name", None)
     description = BeautifulSoup(package.get("notes", ""), "html.parser").get_text()
-    description_spacy = nlp(description).to_json()
+    description_spacy = lm.process(description).to_json()
     tags = [tag["name"] for tag in package.get("tags", []) if "name" in tag]
     license_title = package.get("license_title", None)
     license_url = package.get("license_url", None)
@@ -204,7 +201,7 @@ def index_ckan_package_file(
     name = raw_metadata.get("name", None)
     description = BeautifulSoup(raw_metadata.get("description", ""), 
             "html.parser").get_text()
-    description_spacy = nlp(description).to_json()
+    description_spacy = lm.process(description).to_json()
     original_url = raw_metadata.get("url", None)
     file_format = raw_metadata.get("format", None)
 
