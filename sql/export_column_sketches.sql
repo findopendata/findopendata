@@ -24,7 +24,6 @@ CREATE TEMP VIEW v AS (
         WHERE
             s.package_file_key = f.key
             AND f.package_key = p.key
-        LIMIT 10
     ) sketches
 );
 \COPY (SELECT * FROM v) TO PROGRAM 'gzip > column_sketches.jsonl.gz';
