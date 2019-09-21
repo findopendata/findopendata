@@ -6,14 +6,20 @@ from flask_cors import CORS
 from psycopg2.extras import RealDictCursor
 from psycopg2.pool import ThreadedConnectionPool
 from gcsfs.core import GCSFileSystem
+import requests
+from datasketch import LeanMinHash
 
 import settings
 import storage
 
 
-# When deployed to App Engine, the `GAE_ENV` environment variable will be
-# set to `standard`
-if os.environ.get('GAE_ENV') == 'standard':
+# Flask app.
+app = Flask(__name__)
+
+
+# When deployed to App Engine, 
+# the `GAE_ENV` environment variable will be set.
+if os.environ.get('GAE_SERVICE') == 'apiserver':
     configs = settings.from_datastore("Settings")
     # If deployed, use the local socket interface for accessing Cloud SQL
     db_host = '/cloudsql/{}'.format(configs.get("CLOUD_SQL_CONNECTION_NAME"))
@@ -28,7 +34,7 @@ if os.environ.get('GAE_ENV') == 'standard':
         'host': db_host
     }
     gcsfs_token = "cloud"
-    allowed_origins = ["https://findopendata.com"]
+    lshserver_endpoint = "https://findopendata.com/lsh"
 else:
     # If running locally, use the TCP connections instead
     # Set up Cloud SQL Proxy (cloud.google.com/sql/docs/mysql/sql-proxy)
@@ -42,7 +48,12 @@ else:
     gcp_config = configs.get("gcp")
     bucket_name = gcp_config.get("bucket_name")
     gcsfs_token = gcp_config.get("service_account_file")
-    allowed_origins = ["http://localhost:3000"]
+    lshserver_dev_configs = configs.get("lshserver_local")
+    lshserver_endpoint = "http://{}:{}/lsh".format(
+        lshserver_dev_configs.get("host"),
+        lshserver_dev_configs.get("port"))
+    # All all domains for local server. 
+    CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 
 # Postgres connection pool.
@@ -51,11 +62,6 @@ cnxpool = ThreadedConnectionPool(minconn=1, maxconn=3, **db_config)
 
 # Cloud Storage filesystem interface. 
 fs = GCSFileSystem(access="read_only", token=gcsfs_token, check_connection=True)
-
-
-# Flask app.
-app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": allowed_origins}})
 
 
 def _execute_get_package_brief(cur, package_id=None, package_key=None):
@@ -171,6 +177,50 @@ def _execute_similar_packages(cur, ids, original_hosts=[], limit=50):
         cur.execute(sql, (ids, limit))
 
 
+def _execute_get_column_sketches(cur, ids, original_hosts=[]):
+    sql = r"""
+            SELECT 
+                c.id as id,
+                c.seed,
+                c.minhash,
+                c.column_name,
+                c.sample,
+                f.id as package_file_id,
+                f.created, 
+                f.modified, 
+                f.filename,
+                f.name,
+                f.description,
+                f.original_url,
+                f.format,
+                p.id as package_id, 
+                p.original_host, 
+                p.original_host_display_name, 
+                p.original_host_region,
+                p.created as package_created, 
+                p.modified as package_modified, 
+                p.title as package_title, 
+                p.description as package_description,
+                p.tags,
+                p.organization_name, 
+                p.organization_display_name, 
+                p.organization_image_url
+            FROM
+                findopendata.column_sketches as c,
+                findopendata.package_files as f,
+                findopendata.packages as p
+            WHERE 
+                c.package_file_key = f.key
+                AND f.package_key = p.key
+                AND c.id IN %s
+    """
+    if original_hosts:
+        sql += r" AND original_host in %s "
+        cur.execute(sql, (ids, original_hosts))
+    else:
+        cur.execute(sql, (ids,))
+
+
 _original_hosts = []
 cnx = cnxpool.getconn()
 with cnx.cursor(cursor_factory=RealDictCursor) as cursor:
@@ -223,8 +273,9 @@ def package(package_id):
     with cnx.cursor(cursor_factory=RealDictCursor) as cursor:
         _execute_get_package_detailed(cursor, package_id=package_id)
         package = cursor.fetchone()
-        if package is None:
-            abort(404)
+    if package is None:
+        cnxpool.putconn(cnx)
+        abort(404)
     with cnx.cursor(cursor_factory=RealDictCursor) as cursor:
         cursor.execute(r"""SELECT 
                     id, 
@@ -261,17 +312,18 @@ def package_file(file_id):
                 FROM findopendata.package_files
                 WHERE id = %s""", (str(file_id),))
         package_file = cursor.fetchone()
-        if package_file is None:
-            abort(404)
+    if package_file is None:
+        cnxpool.putconn(cnx)
+        abort(404)
     with cnx.cursor(cursor_factory=RealDictCursor) as cursor:
         _execute_get_package_brief(cursor, package_key=package_file["package_key"])
         package = cursor.fetchone()
-        if package is None:
-            abort(404)
+    cnxpool.putconn(cnx)
+    if package is None:
+        abort(404)
     # remove key from output
     package_file.pop("package_key")
     package.pop("key")
-    cnxpool.putconn(cnx)
     return jsonify(package_file=package_file, package=package)
 
 
@@ -304,5 +356,57 @@ def package_file_data(file_id):
         abort(500)
 
 
+@app.route('/api/joinable-column-search', methods=['GET'])
+def joinable_column_search():
+    query_id = request.args.get('id', '')
+    if query_id == '':
+        return jsonify([])
+    original_host_filter = tuple(request.args.getlist('original_host'))
+    cnx = cnxpool.getconn()
+    # Obtain the MinHash of the query.
+    with cnx.cursor(cursor_factory=RealDictCursor) as cursor:
+        _execute_get_column_sketches(cursor, (query_id,))
+        query = cursor.fetchone()
+    if query is None:
+        # The query does not exist.
+        cnxpool.putconn(cnx)
+        abort(404)
+    # Query the LSH Server.
+    resp = requests.post(lshserver_endpoint+"/query",
+            json={"seed": query["seed"], "hashvalues": query["minhash"]})
+    if not resp.ok:
+        app.logger.error("Error in querying the LSH server")
+        cnxpool.putconn(cnx)
+        abort(500)
+    column_ids = resp.json()
+    if len(column_ids) == 0:
+        # Return empty result.
+        cnxpool.putconn(cnx)
+        return jsonify([])
+    # Obtain the column sketches of the results.
+    with cnx.cursor(cursor_factory=RealDictCursor) as cursor:
+        _execute_get_column_sketches(cursor, tuple(column_ids),
+                original_hosts=original_host_filter)
+        column_sketches = cursor.fetchall()
+    # Done with SQL.
+    cnxpool.putconn(cnx)
+    # Create the final query results.
+    results = []
+    query_minhash = LeanMinHash(seed=query["seed"], hashvalues=query["minhash"])
+    for column in column_sketches:
+        # Compute the similarities for each column in the result.
+        jaccard = query_minhash.jaccard(LeanMinHash(
+                seed=column["seed"], hashvalues=column["minhash"])) 
+        column.pop("seed")
+        column.pop("minhash")
+        column["jaccard"] = jaccard
+        results.append(column)
+    results = sorted(results, key=lambda r : r["jaccard"], reverse=True)
+    return jsonify(results)
+
+
 if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=8080, debug=True)
+    dev_configs = configs.get("apiserver_local")
+    host = dev_configs.get("host")
+    port = dev_configs.get("port")
+    app.run(host=host, port=port, debug=True)

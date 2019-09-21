@@ -5,7 +5,7 @@ import yaml
 
 def from_yaml(filename):
     with open(filename, "r") as f:
-        return yaml.load(f, Loader=yaml.BaseLoader)
+        return yaml.load(f, Loader=yaml.SafeLoader)
 
 
 # Configurations.
@@ -26,3 +26,6 @@ db_configs = configs.get("postgres")
 
 # Celery configurations.
 celery_configs = configs.get("celery")
+
+# Index configurations.
+index_configs = configs.get("index")

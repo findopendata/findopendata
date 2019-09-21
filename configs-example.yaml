@@ -27,3 +27,23 @@ crawler:
   ckan_blob_prefix: ckan
   # The blob name prefix (i.e., top-level folder) for Socrata datasets.
   socrata_blob_prefix: socrata
+
+# Index settings
+index:
+  max_records_per_table: 1000000
+  minhash_size: 256
+  minhash_seed: 43
+  hyperloglog_p: 8
+  sample_size: 100
+  enable_word_vec_data: false
+  minhash_lsh_threshold: 0.5
+
+# API Server local settings
+apiserver_local:
+  host: 127.0.0.1
+  port: 8080
+
+# LSH Server local settings
+lshserver_local:
+  host: 127.0.0.1
+  port: 8081

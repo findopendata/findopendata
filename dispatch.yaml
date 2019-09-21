@@ -1,4 +1,6 @@
 dispatch:
+    - url: "*/lsh/*"
+      service: lshserver
     - url: "*/api/*"
       service: apiserver
     - url: "*/*"

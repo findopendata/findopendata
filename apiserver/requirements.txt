@@ -1,8 +1,13 @@
-flask==1.1.1
-flask-cors==3.0.8
+flask>=1.1.1
+flask-cors>=3.0.8
 requests>=2.22.0
-psycopg2-binary==2.8.3
+psycopg2-binary>=2.8.3
 gcsfs>=0.3.0
 google-cloud-storage>=1.17.0
 google-cloud-datastore>=1.9.0
 pyyaml>=5.1.2
+datasketch>=1.4.10
+python-magic>=0.4.15
+cchardet>=2.1.4
+simplejson>=3.16.0
+fastavro>=0.22.3

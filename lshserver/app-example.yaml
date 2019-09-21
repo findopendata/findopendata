@@ -1,0 +1,15 @@
+service: lshserver
+runtime: python
+env: flex
+entrypoint: gunicorn -b :$PORT main:app
+runtime_config:
+  python_version: 3
+
+manual_scaling:
+  instances: 1
+
+readiness_check:
+  app_start_timeout_sec: 1200
+
+beta_settings:
+    cloud_sql_instances: YOUR_CLOUD_SQL_INSTANCE_CONNECTION_NAME

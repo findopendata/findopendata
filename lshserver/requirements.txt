@@ -1,0 +1,8 @@
+flask>=1.1.1
+flask-cors>=3.0.8
+gunicorn>=19.9.0
+requests>=2.22.0
+psycopg2-binary>=2.8.3
+google-cloud-datastore>=1.9.0
+pyyaml>=5.1.2
+datasketch>=1.4.10
