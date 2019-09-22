@@ -88,7 +88,7 @@ class PackageFile extends React.Component {
         </p>
         <p>{file.description}</p>
         <p>Go to package: <Link to={`/package/${pac.id}`}>{pac.title}</Link>.</p>
-        <p>Showing only the first {records.length} rows.</p>
+        <p>Showing only the first {records.length} rows, <a href={file.original_url}>download the file</a>.</p>
         <div className={this.state.loadingRecords ? 'processing-loading' : 'processing-done'}>
           <div className="d-flex justify-content-center my-10 py-10">
             <Spinner animation="border" role="status">
