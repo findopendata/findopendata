@@ -17,13 +17,15 @@ features beyond simple keyword search. For example:
 
 ## System Overview
 
-The Find Open Data system has three components:
+The Find Open Data system has the following components:
 
 1. **Frontend**: a React app, located in `frontend`.
 2. **API Server**: a Flask web server, located in `apiserver`.
-3. **Crawler**: a set of [Celery](https://docs.celeryproject.org/en/latest/userguide/tasks.html) tasks, located in `crawler`. 
+3. **LSH Server**: a Go web server, located in `lshserver`.
+4. **Crawler**: a set of [Celery](https://docs.celeryproject.org/en/latest/userguide/tasks.html) tasks, located in `crawler`. 
 
-Both the Frontend and the API Server can be deployed to 
+The Frontend, the API Server, and the LSH Server can be 
+deployed to 
 [Google App Engine (standard)](https://cloud.google.com/appengine/docs/standard/).
 
 We also use two external storage systems for persistence:
@@ -156,8 +158,12 @@ annotates them with entities for enrichment.
 The metadata is stored in table `findopendata.packages`, which is 
 also used by the API server to serve the frontend.
 
-#### Index Dataset Content
+#### Sketch Dataset Content
 
-Run `index_dataset_content.py` to start tasks for indexing dataset
-content (i.e., data values, columns, and records) and make them
-available for content-based search.
+Run `sketch_dataset_content.py` to start tasks for creating 
+sketches (e.g., 
+[MinHash](https://github.com/ekzhu/datasketch),
+samples, data types, etc.) of dataset
+content (i.e., data values, columns, and records).
+The sketches will be used for content-based search such as
+finding joinable tables.
