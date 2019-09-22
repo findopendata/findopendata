@@ -26,7 +26,7 @@ The Find Open Data system has the following components:
 
 The Frontend, the API Server, and the LSH Server can be 
 deployed to 
-[Google App Engine (standard)](https://cloud.google.com/appengine/docs/standard/).
+[Google App Engine](https://cloud.google.com/appengine/docs/).
 
 We also use two external storage systems for persistence:
 
