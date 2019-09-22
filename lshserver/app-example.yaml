@@ -1,15 +1,25 @@
 service: lshserver
-runtime: python
+runtime: go
 env: flex
-entrypoint: gunicorn -b :$PORT main:app
-runtime_config:
-  python_version: 3
 
 manual_scaling:
   instances: 1
 
+resources:
+  cpu: 1
+  memory_gb: 6.1
+
 readiness_check:
-  app_start_timeout_sec: 1200
+  app_start_timeout_sec: 2400
 
 beta_settings:
-    cloud_sql_instances: YOUR_CLOUD_SQL_INSTANCE_CONNECTION_NAME
+  cloud_sql_instances: CLOUD_SQL_CONNECTION_NAME
+
+env_variables:
+  PGHOST: /cloudsql/CLOUD_SQL_CONNECTION_NAME
+  PGDATABASE: 
+  PGUSER: 
+  PGSSLMODE: disable
+  PGPASSWORD: 
+
+  MODE: release

@@ -1,4 +1,5 @@
 import os
+import heapq
 
 from flask import Flask, render_template, jsonify, request, abort, Response
 import flask.json as json
@@ -361,6 +362,7 @@ def joinable_column_search():
     query_id = request.args.get('id', '')
     if query_id == '':
         return jsonify([])
+    limit = request.args.get('limit', default=50, type=int)
     original_host_filter = tuple(request.args.getlist('original_host'))
     cnx = cnxpool.getconn()
     # Obtain the MinHash of the query.
@@ -372,10 +374,12 @@ def joinable_column_search():
         cnxpool.putconn(cnx)
         abort(404)
     # Query the LSH Server.
-    resp = requests.post(lshserver_endpoint+"/query",
-            json={"seed": query["seed"], "hashvalues": query["minhash"]})
-    if not resp.ok:
-        app.logger.error("Error in querying the LSH server")
+    try:
+        resp = requests.post(lshserver_endpoint+"/query",
+                json={"seed": query["seed"], "minhash": query["minhash"]})
+        resp.raise_for_status()
+    except requests.exceptions.HTTPError as err:
+        app.logger.error("Error in querying the LSH server: {}".format(err))
         cnxpool.putconn(cnx)
         abort(500)
     column_ids = resp.json()
@@ -383,25 +387,27 @@ def joinable_column_search():
         # Return empty result.
         cnxpool.putconn(cnx)
         return jsonify([])
+    # Create the final query results.
+    results = []
+    query_minhash = LeanMinHash(seed=query["seed"], hashvalues=query["minhash"])
     # Obtain the column sketches of the results.
     with cnx.cursor(cursor_factory=RealDictCursor) as cursor:
         _execute_get_column_sketches(cursor, tuple(column_ids),
                 original_hosts=original_host_filter)
-        column_sketches = cursor.fetchall()
+        for column in cursor:
+            # Compute the similarities for each column in the result.
+            jaccard = query_minhash.jaccard(LeanMinHash(
+                    seed=column["seed"], hashvalues=column["minhash"])) 
+            column.pop("seed")
+            column.pop("minhash")
+            column["jaccard"] = jaccard
+            if len(results) < limit:
+                heapq.heappush(results, (jaccard, column["id"], dict(column)))
+            else:
+                heapq.heappushpop(results, (jaccard, column["id"], dict(column)))
     # Done with SQL.
     cnxpool.putconn(cnx)
-    # Create the final query results.
-    results = []
-    query_minhash = LeanMinHash(seed=query["seed"], hashvalues=query["minhash"])
-    for column in column_sketches:
-        # Compute the similarities for each column in the result.
-        jaccard = query_minhash.jaccard(LeanMinHash(
-                seed=column["seed"], hashvalues=column["minhash"])) 
-        column.pop("seed")
-        column.pop("minhash")
-        column["jaccard"] = jaccard
-        results.append(column)
-    results = sorted(results, key=lambda r : r["jaccard"], reverse=True)
+    results = [column for _, _, column in heapq.nlargest(limit, results)]
     return jsonify(results)
 
 
