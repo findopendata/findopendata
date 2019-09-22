@@ -30,7 +30,8 @@ deployed to
 
 We also use two external storage systems for persistence:
 
-1. A PostgreSQL database for storing dataset registry, metadata and the search index.
+1. A PostgreSQL database for storing dataset registry, metadata,
+and sketches for content-based search.
 2. A Google Cloud Storage Bucket for storing dataset files.
 
 ![System Overview](system_overview.png)
