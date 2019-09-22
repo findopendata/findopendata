@@ -1,9 +1,10 @@
 import React from 'react';
 import {
-  Table, ButtonToolbar, ButtonGroup, Button, Spinner,
+  Table, ButtonToolbar, ButtonGroup, Button, Spinner, Modal, OverlayTrigger, Tooltip,
 } from 'react-bootstrap';
 import { Link } from "react-router-dom";
 import { FetchPackageFileData, FetchPackageFile } from '../tools/RemoteData';
+import JoinableColumnSearchResult from './JoinableColumnSearchResult';
 
 
 class PackageFile extends React.Component {
@@ -12,10 +13,18 @@ class PackageFile extends React.Component {
     this.state = {
       pac: {},
       file: {},
-      headers: [],
+      columns: [],
       records: [],
       loadingRecords: false,
+      showingColumnSearchResult: false,
+      queryColumn: {},
     };
+  }
+  handleCloseColumnSearchResult() {
+    this.setState({queryColumn: {}, showingColumnSearchResult: false});
+  }
+  handleOpenColumnSearchResult(queryColumn) {
+    this.setState({queryColumn: queryColumn, showingColumnSearchResult: true});
   }
   fetchPackageFile(id) {
     FetchPackageFile(id, (res) => {
@@ -31,7 +40,7 @@ class PackageFile extends React.Component {
     FetchPackageFileData(id, (res) => {
       this.setState({
         records: res['records'],
-        headers: res['headers'],
+        columns: res['columns'],
         loadingRecords: false,
       });
     }, (err) => {
@@ -53,7 +62,7 @@ class PackageFile extends React.Component {
   render() {
     const file = this.state.file;
     const pac = this.state.pac;
-    const headers = this.state.headers;
+    const columns = this.state.columns;
     const records = this.state.records;
     return (
       <div>
@@ -90,7 +99,25 @@ class PackageFile extends React.Component {
         <Table responsive striped bordered hover>
           <thead>
             <tr>
-              { headers.map(h => <th key={`header:${h}`}>{h}</th>) }
+              { 
+                columns.map(h => 
+                  <OverlayTrigger
+                    placement="bottom"
+                    overlay={
+                      <Tooltip>
+                        Click me to find joinable tables on this column.
+                      </Tooltip>
+                    }
+                  >
+                    <th key={`column:${h.column_name}`} 
+                      onClick={() => this.handleOpenColumnSearchResult(h)}
+                      className="column"
+                    >
+                      {h.column_name}
+                    </th>
+                  </OverlayTrigger>
+                ) 
+              }
             </tr>
           </thead>
           <tbody>
@@ -98,7 +125,7 @@ class PackageFile extends React.Component {
               records.map((record, i) => (
                 <tr key={`row:${i}`}>
                   {
-                    headers.map((key, j) => (
+                    columns.map(c => c.column_name).map((key, j) => (
                       <td key={`cell:${i}:${j}`}>
                         { 
                           record[key] ? (
@@ -114,6 +141,19 @@ class PackageFile extends React.Component {
             }
           </tbody>
         </Table>
+        <Modal size="lg" aria-labelledby="contained-modal-title-vcenter"
+          centered 
+          show={this.state.showingColumnSearchResult}
+          onHide={() => this.handleCloseColumnSearchResult()}
+          >
+          <Modal.Body>
+            <JoinableColumnSearchResult 
+              columnId={this.state.queryColumn.id}
+              columnName={this.state.queryColumn.column_name}
+              onClickResult={this.handleCloseColumnSearchResult.bind(this)}
+            />
+          </Modal.Body>
+        </Modal>
       </div>
     );
   }

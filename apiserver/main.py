@@ -1,5 +1,6 @@
 import os
 import heapq
+import uuid
 
 from flask import Flask, render_template, jsonify, request, abort, Response
 import flask.json as json
@@ -144,6 +145,7 @@ def _execute_keyword_search(cur, query, original_hosts=[], limit=50):
 
 
 def _execute_similar_packages(cur, ids, original_hosts=[], limit=50):
+    ids = tuple(str(id) for id in ids)
     sql = r"""SELECT 
                 r.id, 
                 r.original_host, 
@@ -179,6 +181,7 @@ def _execute_similar_packages(cur, ids, original_hosts=[], limit=50):
 
 
 def _execute_get_column_sketches(cur, ids, original_hosts=[]):
+    ids = tuple(str(id) for id in ids)
     sql = r"""
             SELECT 
                 c.id as id,
@@ -256,10 +259,10 @@ def keyword_search():
 
 @app.route('/api/similar-packages', methods=['GET'])
 def similar_packages():
-    package_ids = tuple(request.args.getlist('id'))
+    package_ids = tuple(request.args.getlist('id', type=uuid.UUID))
     if len(package_ids) == 0:
         return jsonify([])
-    original_host_filter = tuple(request.args.getlist('original_host'))
+    original_host_filter = tuple(request.args.getlist('original_host', type=str))
     cnx = cnxpool.getconn()
     with cnx.cursor(cursor_factory=RealDictCursor) as cursor:
         _execute_similar_packages(cursor, package_ids, original_host_filter)
@@ -330,37 +333,48 @@ def package_file(file_id):
 
 @app.route('/api/package-file-data/<uuid:file_id>', methods=['GET'])
 def package_file_data(file_id):
+    # Get package file blob name and column sketches.
     cnx = cnxpool.getconn()
     with cnx.cursor(cursor_factory=RealDictCursor) as cursor:
-        cursor.execute(r"""select format, blob_name
-                from findopendata.package_files
-                where id = %s""", (str(file_id),))
+        cursor.execute(r"""SELECT key, format, blob_name
+                           FROM findopendata.package_files
+                           WHERE id = %s""", (str(file_id),))
         package_file = cursor.fetchone()
         if package_file is None:
+            cnxpool.putconn(cnx)
             abort(404)
+        cursor.execute(r"""SELECT id, column_name 
+                           FROM findopendata.column_sketches
+                           WHERE package_file_key = %s""", 
+                           (package_file["key"],))
+        column_sketches = dict((c["column_name"], c) for c in cursor.fetchall())
     cnxpool.putconn(cnx)
-    # load data file from blob
+    # Load data file from blob
     nrows = request.args.get('nrows', default=20, type=int)
     try:
-        headers, records = storage.read_package_file(fs, package_file["format"],
-                bucket_name, package_file["blob_name"], nrows)
-        return app.response_class(
-                response=json.dumps({
-                        "headers" : headers,
-                        "records" : records,
-                    }, ignore_nan=True),
-                status=200,
-                mimetype='application/json')
+        column_names, records = storage.read_package_file(fs, 
+                package_file["format"], bucket_name, package_file["blob_name"], 
+                nrows)
     except Exception as e:
         app.logger.error("Error in reading {}: {}".format(
             package_file["blob_name"], e))
         abort(500)
+    # Merge column names and column_sketches
+    columns = [column_sketches.get(column_name, {"column_name": column_name})
+            for column_name in column_names]
+    return app.response_class(
+            response=json.dumps({
+                    "columns" : columns,
+                    "records" : records,
+                }, ignore_nan=True),
+            status=200,
+            mimetype='application/json')
 
 
 @app.route('/api/joinable-column-search', methods=['GET'])
 def joinable_column_search():
-    query_id = request.args.get('id', '')
-    if query_id == '':
+    query_id = request.args.get('id', None, type=uuid.UUID)
+    if query_id == None:
         return jsonify([])
     limit = request.args.get('limit', default=50, type=int)
     original_host_filter = tuple(request.args.getlist('original_host'))
@@ -382,7 +396,8 @@ def joinable_column_search():
         app.logger.error("Error in querying the LSH server: {}".format(err))
         cnxpool.putconn(cnx)
         abort(500)
-    column_ids = resp.json()
+    column_ids = [column_id for column_id in resp.json() 
+            if column_id != query_id]
     if len(column_ids) == 0:
         # Return empty result.
         cnxpool.putconn(cnx)

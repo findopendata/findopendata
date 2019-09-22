@@ -17,13 +17,13 @@ class HomePage extends React.Component {
         <p>
           Please start by trying out the search bar.
           Examples:
-          <ul>
-            <li><Link to="/keyword-search?query=school%20reports%20new%20york%202017">school reports new york 2017</Link></li>
-            <li><Link to="/keyword-search?query=building%20permits%20new%20york">building permits new york</Link></li>
-            <li><Link to="/keyword-search?query=bike%20lanes%20seattle">bike lanes seattle</Link></li>
-            <li><Link to="/keyword-search?query=nserc%20awards">nserc awards</Link></li>
-          </ul>
         </p>
+        <ul>
+          <li><Link to="/keyword-search?query=school%20reports%20new%20york%202017">school reports new york 2017</Link></li>
+          <li><Link to="/keyword-search?query=building%20permits%20new%20york">building permits new york</Link></li>
+          <li><Link to="/keyword-search?query=bike%20lanes%20seattle">bike lanes seattle</Link></li>
+          <li><Link to="/keyword-search?query=nserc%20awards">nserc awards</Link></li>
+        </ul>
         <p>
           For discussion please join us on <a href="https://groups.google.com/d/forum/findopendata">
             findopendata@googlegroups.com

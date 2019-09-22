@@ -135,6 +135,10 @@ body {
   }
 }
 
+th.column {
+  cursor: pointer;
+}
+
 
 /*
  * Navbar

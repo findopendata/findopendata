@@ -74,6 +74,21 @@ function FetchPackageFileData(packageFileId, callBackSuccess, callBackFail) {
   });
 }
 
+function FetchJoinableColumns(columnId, selectedOriginalHosts, callBackSuccess, callBackFail) {
+  var url_queries = [`id=${columnId}`,];
+  if (selectedOriginalHosts.length > 0) {
+    url_queries = url_queries.concat(selectedOriginalHosts.map(h => `original_host=${h}`));
+  }
+  fetch(`${API_ENDPOINT}/joinable-column-search?${url_queries.join('&')}`)
+  .then(handleErrors)
+  .then(res => res.json()).then((res) => {
+    callBackSuccess(res);
+  }).catch(err => {
+    console.log(err);
+    callBackFail(err);
+  });
+}
+
 export {
   FetchOriginalHosts,
   FetchKeywordSearchResults, 
@@ -81,4 +96,5 @@ export {
   FetchPackage,
   FetchPackageFile,
   FetchPackageFileData,
+  FetchJoinableColumns,
 };
