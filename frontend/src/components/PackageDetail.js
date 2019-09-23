@@ -75,10 +75,8 @@ class PackageDetail extends React.Component {
           <thead>
             <tr>
               <th>Name</th>
-              <th>Description</th>
               <th>Format</th>
-              <th>Created</th>
-              <th>Modified</th>
+              <th>Updated</th>
             </tr>
           </thead>
           <tbody>
@@ -94,16 +92,14 @@ class PackageDetail extends React.Component {
               }).map((f) =>
                 <tr key={f.id}>
                   <td>
-                    {f.name} &nbsp;
+                    {f.filename} &nbsp;
                     {
                       f.available ? <Link to={`/package-file/${f.id}`}>[Preview]&nbsp;</Link>: ''
                     }
                     <a href={f.original_url}>[Download]</a>
                   </td>
-                  <td>{f.description}</td>
                   <td>{f.format}</td>
-                  <td>{f.created}</td>
-                  <td>{f.modified}</td>
+                  <td>{f.modified ? f.modified : f.created}</td>
                 </tr>
               )
             }

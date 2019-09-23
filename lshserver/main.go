@@ -28,7 +28,12 @@ func indexing(db *sql.DB) (lsh *minhashlsh.MinhashLSH, minhashSize, minhashSeed 
 	rows, err := db.Query(`SELECT id, minhash, seed 
 						FROM findopendata.column_sketches
 						WHERE count != empty_count
-						AND numeric_count::float / (count - empty_count)::float < 0.1`)
+						AND cardinality(sample) >= 10
+						AND (
+							cardinality(sample) >= 50
+							OR cardinality(sample)::float / (count - empty_count)::float >= 0.9
+						)
+						`)
 	if err != nil {
 		log.Fatal(err)
 	}
