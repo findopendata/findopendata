@@ -24,21 +24,28 @@ var (
 )
 
 func indexing(db *sql.DB) (lsh *minhashlsh.MinhashLSH, minhashSize, minhashSeed int) {
-	log.Print("Indexing started, scanning column sketches...")
+	sqlPredicates := `count != empty_count
+					AND cardinality(sample) >= 10
+					AND (
+						cardinality(sample) >= 50
+						OR cardinality(sample)::float / (count - empty_count)::float >= 0.9
+					)`
+	log.Print("Counting indexable column sketches...")
+	var count int
+	err := db.QueryRow(`SELECT count(*) as count
+			FROM findopendata.column_sketches 
+			WHERE ` + sqlPredicates).Scan(&count)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("Indexing started, scanning %d column sketches...", count)
 	rows, err := db.Query(`SELECT id, minhash, seed 
 						FROM findopendata.column_sketches
-						WHERE count != empty_count
-						AND cardinality(sample) >= 10
-						AND (
-							cardinality(sample) >= 50
-							OR cardinality(sample)::float / (count - empty_count)::float >= 0.9
-						)
-						`)
+						WHERE ` + sqlPredicates)
 	if err != nil {
 		log.Fatal(err)
 	}
 	minhashSize, minhashSeed = -1, -1
-	count := 0
 	var id string
 	var minhash []int64
 	var seed int
@@ -57,14 +64,13 @@ func indexing(db *sql.DB) (lsh *minhashlsh.MinhashLSH, minhashSize, minhashSeed 
 			log.Fatalf("Incorrect minhash seed %v encountered, expecting %v", seed, minhashSeed)
 		}
 		if lsh == nil {
-			lsh = minhashlsh.NewMinhashLSH(minhashSize, threshold)
+			lsh = minhashlsh.NewMinhashLSH(minhashSize, threshold, count)
 		}
 		minhashUnsigned := make([]uint64, len(minhash))
 		for i := range minhash {
 			minhashUnsigned[i] = uint64(minhash[i])
 		}
 		lsh.Add(id, minhashUnsigned)
-		count++
 	}
 	if err := rows.Err(); err != nil {
 		log.Fatal(err)
