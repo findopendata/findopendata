@@ -25,9 +25,10 @@ class HomePage extends React.Component {
           <li><Link to="/keyword-search?query=nserc%20awards">nserc awards</Link></li>
         </ul>
         <p>
-          For discussion please join us on <a href="https://groups.google.com/d/forum/findopendata">
-            findopendata@googlegroups.com
-          </a>.
+          This project is open source. 
+          See our <a href="https://github.com/findopendata/findopendata">Github repo</a>.
+          For discussion and reporting bugs please 
+          use our <a href="https://github.com/findopendata/findopendata/issues">issue page</a>.
         </p>
       </div>
     );

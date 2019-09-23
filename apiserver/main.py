@@ -397,7 +397,7 @@ def joinable_column_search():
         cnxpool.putconn(cnx)
         abort(500)
     column_ids = [column_id for column_id in resp.json() 
-            if column_id != query_id]
+            if column_id != str(query_id)]
     if len(column_ids) == 0:
         # Return empty result.
         cnxpool.putconn(cnx)

@@ -101,21 +101,30 @@ class PackageFile extends React.Component {
             <tr>
               { 
                 columns.map(h => 
-                  <OverlayTrigger
-                    placement="bottom"
-                    overlay={
-                      <Tooltip>
-                        Click me to find joinable tables on this column.
-                      </Tooltip>
-                    }
-                  >
-                    <th key={`column:${h.column_name}`} 
-                      onClick={() => this.handleOpenColumnSearchResult(h)}
-                      className="column"
+                  h.id ? (
+                    <OverlayTrigger
+                      key={`column-overlay:${h.column_name}`}
+                      placement="bottom"
+                      overlay={
+                        <Tooltip>
+                          Click me to find joinable tables on this column.
+                        </Tooltip>
+                      }
                     >
-                      {h.column_name}
-                    </th>
-                  </OverlayTrigger>
+                      <th key={`column:${h.column_name}`} 
+                        onClick={() => this.handleOpenColumnSearchResult(h)}
+                        className="column-search"
+                      >
+                        {h.column_name}
+                      </th>
+                    </OverlayTrigger>
+                  ) : (
+                      <th key={`column:${h.column_name}`} 
+                        className="column-no-search"
+                      >
+                        {h.column_name}
+                      </th>
+                  )
                 ) 
               }
             </tr>

@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	threshold = 0.75
+	threshold = 0.5
 )
 
 func indexing(db *sql.DB) (lsh *minhashlsh.MinhashLSH, minhashSize, minhashSeed int) {
