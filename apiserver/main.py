@@ -189,6 +189,7 @@ def _execute_get_column_sketches(cur, ids, original_hosts=[]):
                 c.minhash,
                 c.column_name,
                 c.sample,
+                c.distinct_count,
                 f.id as package_file_id,
                 f.created, 
                 f.modified, 
@@ -371,6 +372,15 @@ def package_file_data(file_id):
             mimetype='application/json')
 
 
+def _containment(jaccard, x, q):
+    if jaccard == 1.0:
+        return 1.0
+    if jaccard == 0.0 or x == 0 or q == 0:
+        return 0.0
+    return max(jaccard, min(min(x, q)/float(q),
+            jaccard * (1.0 + x) / (1.0 - jaccard)))
+
+
 @app.route('/api/joinable-column-search', methods=['GET'])
 def joinable_column_search():
     query_id = request.args.get('id', None, type=uuid.UUID)
@@ -413,13 +423,18 @@ def joinable_column_search():
             # Compute the similarities for each column in the result.
             jaccard = query_minhash.jaccard(LeanMinHash(
                     seed=column["seed"], hashvalues=column["minhash"])) 
+            containment = _containment(jaccard, column["distinct_count"], 
+                    query["distinct_count"])
             column.pop("seed")
             column.pop("minhash")
             column["jaccard"] = jaccard
+            column["containment"] = containment
             if len(results) < limit:
-                heapq.heappush(results, (jaccard, column["id"], dict(column)))
+                heapq.heappush(results, 
+                        (containment, column["id"], dict(column)))
             else:
-                heapq.heappushpop(results, (jaccard, column["id"], dict(column)))
+                heapq.heappushpop(results, 
+                        (containment, column["id"], dict(column)))
     # Done with SQL.
     cnxpool.putconn(cnx)
     results = [column for _, _, column in heapq.nlargest(limit, results)]

@@ -79,7 +79,7 @@ class JoinableColumnSearchResult extends React.Component {
                   />
                 </Card.Body>
                 <Card.Footer>
-                  Similarity: {column.jaccard}
+                  Containment: {column.containment}
                 </Card.Footer>
               </Card>
             )

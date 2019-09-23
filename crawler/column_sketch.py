@@ -120,7 +120,9 @@ class ColumnSketch:
     def distinct_count(self):
         """The approximate distinct count made by the HyperLogLog.
         """
-        return self._hhl.count()
+        if len(self._sample) < len(self._sample_size):
+            return len(self._sample)
+        return max(len(self._sample), self._hhl.count())
     
     @property
     def word_vector_column_name(self):

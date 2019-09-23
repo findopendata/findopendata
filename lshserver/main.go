@@ -20,15 +20,17 @@ import (
 )
 
 var (
-	threshold = 0.5
+	threshold = 0.1
 )
 
 func indexing(db *sql.DB) (lsh *minhashlsh.MinhashLSH, minhashSize, minhashSeed int) {
 	sqlPredicates := `count != empty_count
-					AND cardinality(sample) >= 10
 					AND (
-						cardinality(sample) >= 50
-						OR cardinality(sample)::float / (count - empty_count)::float >= 0.9
+						distinct_count >= 50
+						OR (
+							distinct_count >= 10
+							AND distinct_count::float / (count - empty_count)::float >= 0.9
+						)
 					)`
 	log.Print("Counting indexable column sketches...")
 	var count int
