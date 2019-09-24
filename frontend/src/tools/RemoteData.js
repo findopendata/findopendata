@@ -40,25 +40,27 @@ function FetchSimilarPackageSearchResults(packageId, selectedOriginalHosts, call
   });
 }
 
-function FetchPackage(packageId, callBack) {
+function FetchPackage(packageId, callBackSuccess, callBackFail) {
   fetch(`${API_ENDPOINT}/package/${packageId}`)
   .then(handleErrors)
   .then(res => res.json())
   .then(res => {
-    callBack(res);
+    callBackSuccess(res);
   }).catch(err => {
     console.log(err);
+    callBackFail(err);
   });
 }
 
-function FetchPackageFile(packageFileId, callBack) {
+function FetchPackageFile(packageFileId, callBackSuccess, callBackFail) {
   fetch(`${API_ENDPOINT}/package-file/${packageFileId}`)
   .then(handleErrors)
   .then(res => res.json())
   .then(res => {
-    callBack(res);
+    callBackSuccess(res);
   }).catch(err => {
     console.log(err);
+    callBackFail(err);
   });
 }
 

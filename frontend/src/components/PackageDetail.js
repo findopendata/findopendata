@@ -4,6 +4,7 @@ import {
 } from 'react-bootstrap';
 import { Link } from "react-router-dom";
 import { FetchPackage } from '../tools/RemoteData';
+import { LoadingSpinner } from './LoadingSpinner';
 
 class PackageDetail extends React.Component {
   constructor(props) {
@@ -11,18 +12,23 @@ class PackageDetail extends React.Component {
     this.state = {
       pac: { tags: [] },
       files: [],
+      loading: false,
     };
   }
   fetchPackageDetail(id) {
     if (!id) {
       return;
     }
+    this.setState({loading: true});
     FetchPackage(id, (res) => {
       this.setState({
         pac: res['package'],
         files: res['package_files'],
+        loading: false,
       });
       this.props.onLoad(this.state.pac);
+    }, (err) => {
+      this.setState({loading: false});
     });
   }
   componentDidMount() {
@@ -58,6 +64,7 @@ class PackageDetail extends React.Component {
               (<span>Created: {pac.created}</span>) 
           }
         </p>
+        <LoadingSpinner loading={this.state.loading} />
         <h3>Publisher</h3>
         <p>{pac.organization_display_name}</p>
         <h3>Description</h3>

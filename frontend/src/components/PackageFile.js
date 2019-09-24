@@ -1,10 +1,11 @@
 import React from 'react';
 import {
-  Table, ButtonToolbar, ButtonGroup, Button, Spinner, Modal, OverlayTrigger, Tooltip,
+  Table, ButtonToolbar, ButtonGroup, Button, Modal, OverlayTrigger, Tooltip,
 } from 'react-bootstrap';
 import { Link } from "react-router-dom";
-import { FetchPackageFileData, FetchPackageFile } from '../tools/RemoteData';
+import { FetchPackageFile } from '../tools/RemoteData';
 import JoinableColumnSearchResult from './JoinableColumnSearchResult';
+import { LoadingSpinner } from './LoadingSpinner';
 
 
 class PackageFile extends React.Component {
@@ -13,9 +14,7 @@ class PackageFile extends React.Component {
     this.state = {
       pac: {},
       file: {},
-      columns: [],
-      records: [],
-      loadingRecords: false,
+      loading: false,
       showingColumnSearchResult: false,
       queryColumn: {},
     };
@@ -27,43 +26,33 @@ class PackageFile extends React.Component {
     this.setState({queryColumn: queryColumn, showingColumnSearchResult: true});
   }
   fetchPackageFile(id) {
+    this.setState({loading: true});
     FetchPackageFile(id, (res) => {
       this.setState({
         pac: res['package'],
         file: res['package_file'],
+        loading: false,
       });
       this.props.onLoad(this.state.pac);
-    });
-  }
-  fetchPackageFileData(id) {
-    this.setState({ loadingRecords: true });
-    FetchPackageFileData(id, (res) => {
-      this.setState({
-        records: res['records'],
-        columns: res['columns'],
-        loadingRecords: false,
-      });
     }, (err) => {
       this.setState({
-        loadingRecords: false,
+        loading: false,
       })
     });
   }
   componentDidMount() {
     this.fetchPackageFile(this.props.pacFileId);
-    this.fetchPackageFileData(this.props.pacFileId);
   }
   componentDidUpdate(prevProps) {
     if (this.props.pacFileId !== prevProps.pacFileId) {
       this.fetchPackageFile(this.props.pacFileId);
-      this.fetchPackageFileData(this.props.pacFileId);
     }
   }
   render() {
     const file = this.state.file;
     const pac = this.state.pac;
-    const columns = this.state.columns;
-    const records = this.state.records;
+    const columns = file.columns ? file.columns : [];
+    const records = file.sample ? file.sample : [];
     return (
       <div>
         <div className="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
@@ -86,16 +75,10 @@ class PackageFile extends React.Component {
               (<span>Created: {file.created}</span>) 
           }
         </p>
+        <LoadingSpinner loading={this.state.loading} />
         <p>{file.description}</p>
         <p>Go to package: <Link to={`/package/${pac.id}`}>{pac.title}</Link>.</p>
         <p>Showing only the first {records.length} rows, <a href={file.original_url}>download the file</a>.</p>
-        <div className={this.state.loadingRecords ? 'processing-loading' : 'processing-done'}>
-          <div className="d-flex justify-content-center my-10 py-10">
-            <Spinner animation="border" role="status">
-              <span className="sr-only">Loading...</span>
-            </Spinner>
-          </div>
-        </div>
         <Table responsive striped bordered hover>
           <thead>
             <tr>

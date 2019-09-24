@@ -1,8 +1,9 @@
 import React from 'react';
 import { FetchJoinableColumns } from '../tools/RemoteData';
-import { Card, Spinner } from 'react-bootstrap';
+import { Card } from 'react-bootstrap';
 import { Link } from "react-router-dom";
 import TextTruncate from 'react-text-truncate';
+import LoadingSpinner from './LoadingSpinner';
 
 class JoinableColumnSearchResult extends React.Component {
   constructor(props) {
@@ -44,13 +45,7 @@ class JoinableColumnSearchResult extends React.Component {
           <h3>Joinable Tables on <em>{this.props.columnName}</em></h3>
         </div>
         <p>Found {columns.length} joinable tables.</p>
-        <div className={this.state.loading ? 'processing-loading' : 'processing-done'}>
-          <div className="d-flex justify-content-center my-10 py-10">
-            <Spinner animation="border" role="status">
-              <span className="sr-only">Loading...</span>
-            </Spinner>
-          </div>
-        </div>
+        <LoadingSpinner loading={this.state.loading} />
         <div>
           {
             columns.map((column) => 

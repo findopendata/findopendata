@@ -7,12 +7,10 @@ import flask.json as json
 from flask_cors import CORS
 from psycopg2.extras import RealDictCursor
 from psycopg2.pool import ThreadedConnectionPool
-from gcsfs.core import GCSFileSystem
 import requests
 from datasketch import LeanMinHash
 
 import settings
-import storage
 
 
 # Flask app.
@@ -28,14 +26,12 @@ if os.environ.get('GAE_SERVICE') == 'apiserver':
     db_user = configs.get("CLOUD_SQL_USERNAME")
     db_password = configs.get('CLOUD_SQL_PASSWORD')
     db_name = configs.get('CLOUD_SQL_DATABASE_NAME')
-    bucket_name = configs.get('BUCKET_NAME')
     db_config = {
         'user': db_user,
         'password': db_password,
         'dbname': db_name,
         'host': db_host
     }
-    gcsfs_token = "cloud"
     lshserver_endpoint = "https://findopendata.com/lsh"
 else:
     # If running locally, use the TCP connections instead
@@ -47,9 +43,6 @@ else:
         os.path.pardir,
         "configs.yaml"))
     db_config = configs.get("postgres")
-    gcp_config = configs.get("gcp")
-    bucket_name = gcp_config.get("bucket_name")
-    gcsfs_token = gcp_config.get("service_account_file")
     lshserver_dev_configs = configs.get("lshserver_local")
     lshserver_endpoint = "http://{}:{}/lsh".format(
         lshserver_dev_configs.get("host"),
@@ -60,10 +53,6 @@ else:
 
 # Postgres connection pool.
 cnxpool = ThreadedConnectionPool(minconn=1, maxconn=3, **db_config)
-
-
-# Cloud Storage filesystem interface. 
-fs = GCSFileSystem(access="read_only", token=gcsfs_token, check_connection=True)
 
 
 def _execute_get_package_brief(cur, package_id=None, package_key=None):
@@ -291,7 +280,7 @@ def package(package_id):
                     description,
                     original_url,
                     format,
-                    blob_name IS NOT NULL as available
+                    sample IS NOT NULL as available
                 FROM findopendata.package_files
                 WHERE package_key = %s""", (package["key"],))
         package_files = cursor.fetchall()
@@ -313,63 +302,38 @@ def package_file(file_id):
                     name,
                     description,
                     original_url,
-                    format 
+                    format,
+                    column_names,
+                    column_sketch_ids,
+                    sample
                 FROM findopendata.package_files
                 WHERE id = %s""", (str(file_id),))
         package_file = cursor.fetchone()
     if package_file is None:
         cnxpool.putconn(cnx)
         abort(404)
+    if package_file["column_names"] and package_file["column_sketch_ids"]:
+        # Merge column ids and names
+        package_file["columns"] = [{"column_name": name, "id": sketch_id}
+                for name, sketch_id in 
+                zip(package_file["column_names"], 
+                package_file["column_sketch_ids"])]
+    else:
+        package_file["columns"] = None
+    package_file.pop("column_names")
+    package_file.pop("column_sketch_ids")
+    # Obtain the package info.
     with cnx.cursor(cursor_factory=RealDictCursor) as cursor:
-        _execute_get_package_brief(cursor, package_key=package_file["package_key"])
+        _execute_get_package_brief(cursor, 
+                package_key=package_file["package_key"])
         package = cursor.fetchone()
     cnxpool.putconn(cnx)
     if package is None:
         abort(404)
-    # remove key from output
+    # Remove key from output
     package_file.pop("package_key")
     package.pop("key")
     return jsonify(package_file=package_file, package=package)
-
-
-@app.route('/api/package-file-data/<uuid:file_id>', methods=['GET'])
-def package_file_data(file_id):
-    # Get package file blob name and column sketches.
-    cnx = cnxpool.getconn()
-    with cnx.cursor(cursor_factory=RealDictCursor) as cursor:
-        cursor.execute(r"""SELECT key, format, blob_name
-                           FROM findopendata.package_files
-                           WHERE id = %s""", (str(file_id),))
-        package_file = cursor.fetchone()
-        if package_file is None:
-            cnxpool.putconn(cnx)
-            abort(404)
-        cursor.execute(r"""SELECT id, column_name 
-                           FROM findopendata.column_sketches
-                           WHERE package_file_key = %s""", 
-                           (package_file["key"],))
-        column_sketches = dict((c["column_name"], c) for c in cursor.fetchall())
-    cnxpool.putconn(cnx)
-    # Load data file from blob
-    nrows = request.args.get('nrows', default=20, type=int)
-    try:
-        column_names, records = storage.read_package_file(fs, 
-                package_file["format"], bucket_name, package_file["blob_name"], 
-                nrows)
-    except Exception as e:
-        app.logger.error("Error in reading {}: {}".format(
-            package_file["blob_name"], e))
-        abort(500)
-    # Merge column names and column_sketches
-    columns = [column_sketches.get(column_name, {"column_name": column_name})
-            for column_name in column_names]
-    return app.response_class(
-            response=json.dumps({
-                    "columns" : columns,
-                    "records" : records,
-                }, ignore_nan=True),
-            status=200,
-            mimetype='application/json')
 
 
 def _containment(jaccard, x, q):

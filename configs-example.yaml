@@ -36,7 +36,7 @@ index:
   minhash_seed: 43
   hyperloglog_p: 8
   column_sample_size: 100
-  enable_word_vec_data: false
+  enable_word_vector_data: false
   minhash_lsh_threshold: 0.5
 
 # API Server local settings
