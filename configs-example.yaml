@@ -30,11 +30,12 @@ crawler:
 
 # Index settings
 index:
-  max_records_per_table: 1000000
+  max_records_per_dataset: 1000000
+  table_sample_size: 20
   minhash_size: 256
   minhash_seed: 43
   hyperloglog_p: 8
-  sample_size: 100
+  column_sample_size: 100
   enable_word_vec_data: false
   minhash_lsh_threshold: 0.5
 

@@ -109,7 +109,14 @@ CREATE TABLE IF NOT EXISTS findopendata.package_files (
     blob_name text,
 
     -- The raw metadata of this package file.
-    raw_metadata jsonb NOT NULL
+    raw_metadata jsonb NOT NULL,
+
+    -- The column names of this package file.
+    column_names text[],
+    -- The column sketch IDs of this package file, in the same order as the column_names.
+    column_sketch_ids uuid[],
+    -- The sample of records of this package file in JSON.
+    sample jsonb
 );
 CREATE UNIQUE INDEX IF NOT EXISTS package_files_crawler_idx ON findopendata.package_files(crawler_table, crawler_key);
 CREATE UNIQUE INDEX IF NOT EXISTS package_files_idx ON findopendata.package_files(id);
