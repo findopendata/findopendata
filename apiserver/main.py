@@ -5,7 +5,7 @@ import uuid
 from flask import Flask, render_template, jsonify, request, abort, Response
 import flask.json as json
 from flask_cors import CORS
-from psycopg2.extras import RealDictCursor
+from psycopg2.extras import RealDictCursor, register_uuid
 from psycopg2.pool import ThreadedConnectionPool
 import requests
 from datasketch import LeanMinHash
@@ -53,6 +53,8 @@ else:
 
 # Postgres connection pool.
 cnxpool = ThreadedConnectionPool(minconn=1, maxconn=3, **db_config)
+# Register UUID adaptor because we want to use UUID type.
+register_uuid()
 
 
 def _execute_get_package_brief(cur, package_id=None, package_key=None):
@@ -66,10 +68,10 @@ def _execute_get_package_brief(cur, package_id=None, package_key=None):
             FROM findopendata.packages """
     if package_key is not None:
         sql += r" WHERE key = %s "
-        args = (str(package_key),)
+        args = (package_key,)
     elif package_id is not None:
         sql += r" WHERE id = %s "
-        args = (str(package_id),)
+        args = (package_id,)
     else:
         raise ValueError("Missing package_id and package_key")
     cur.execute(sql, args)
@@ -98,10 +100,10 @@ def _execute_get_package_detailed(cur, package_id=None, package_key=None):
             FROM findopendata.packages """
     if package_key is not None:
         sql += r" WHERE key = %s "
-        args = (str(package_key),)
+        args = (package_key,)
     elif package_id is not None:
         sql += r" WHERE id = %s "
-        args = (str(package_id),)
+        args = (package_id,)
     else:
         raise ValueError("Missing package_id and package_key")
     cur.execute(sql, args)
@@ -134,7 +136,6 @@ def _execute_keyword_search(cur, query, original_hosts=[], limit=50):
 
 
 def _execute_similar_packages(cur, ids, original_hosts=[], limit=50):
-    ids = tuple(str(id) for id in ids)
     sql = r"""SELECT 
                 r.id, 
                 r.original_host, 
@@ -170,7 +171,6 @@ def _execute_similar_packages(cur, ids, original_hosts=[], limit=50):
 
 
 def _execute_get_column_sketches(cur, ids, original_hosts=[]):
-    ids = tuple(str(id) for id in ids)
     sql = r"""
             SELECT 
                 c.id as id,
@@ -293,6 +293,7 @@ def package(package_id):
 @app.route('/api/package-file/<uuid:file_id>', methods=['GET'])
 def package_file(file_id):
     cnx = cnxpool.getconn()
+    # Obtain the package file.
     with cnx.cursor(cursor_factory=RealDictCursor) as cursor:
         cursor.execute(r"""SELECT 
                     package_key, 
@@ -307,7 +308,7 @@ def package_file(file_id):
                     column_sketch_ids,
                     sample
                 FROM findopendata.package_files
-                WHERE id = %s""", (str(file_id),))
+                WHERE id = %s""", (file_id,))
         package_file = cursor.fetchone()
     if package_file is None:
         cnxpool.putconn(cnx)
