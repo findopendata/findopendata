@@ -31,11 +31,15 @@ CREATE TABLE IF NOT EXISTS findopendata.packages (
     num_files integer NOT NULL,
     -- The document for supporting full text search.
     fts_doc tsvector NOT NULL,
+    -- The added time of this data package to the metadata table.
+    added timestamp default current_timestamp,
+    -- The last updated time of this data pacakge in the metadata table.
+    updated timestamp default current_timestamp,
 
     ----- Fields extracted from raw metadata -----
     -- The creation time of this data package by original publisher
     created timestamp,
-    -- The last modified time of this data package original publisher.
+    -- The last modified time of this data package by the original publisher.
     modified timestamp,
     -- The title of this data package for display.
     title text,
@@ -84,10 +88,15 @@ CREATE TABLE IF NOT EXISTS findopendata.package_files (
 
     -- The unique ID of this package file; used publicly.
     id uuid NOT NULL,
+    
+    -- The time when this package file is added to this table.
+    added timestamp default current_timestamp,
+    -- The last updated time when this package is updated in this table.
+    updated timestamp default current_timestamp,
 
-    -- The created time of this package file.
+    -- The created time of this package file by the original publisher.
     created timestamp,
-    -- The updated time of this package file.
+    -- The updated time of this package file by the original publisher.
     modified timestamp,
 
     -- The filename of this package file.

@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS findopendata.column_sketches (
     -- The created time of this column sketch.
     added timestamp default current_timestamp,
     -- The updated time of this column sketch.
-    modified timestamp default current_timestamp,
+    updated timestamp default current_timestamp,
 
     -- The name of this column.
     column_name text NOT NULL,

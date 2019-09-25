@@ -77,7 +77,7 @@ def index_ckan_package(
     fts_doc = " ".join(s for s in [title, description] + tags if s is not None)
 
     # Save package
-    cur.execute("""INSERT INTO findopendata.packages
+    cur.execute(r"""INSERT INTO findopendata.packages
             (
                 crawler_table, 
                 crawler_key, 
@@ -113,6 +113,7 @@ def index_ckan_package(
             original_host_region = EXCLUDED.original_host_region,
             num_files = EXCLUDED.num_files,
             fts_doc = EXCLUDED.fts_doc,
+            updated = current_timestamp,
             created = EXCLUDED.created,
             modified = EXCLUDED.modified,
             title = EXCLUDED.title,
@@ -209,7 +210,7 @@ def index_ckan_package_file(
     conn = psycopg2.connect(**db_configs)
     # Get CKAN resources
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute("""INSERT INTO findopendata.package_files
+    cur.execute(r"""INSERT INTO findopendata.package_files
             (
                 package_key, 
                 crawler_table, 
@@ -230,6 +231,7 @@ def index_ckan_package_file(
             (%s, %s, %s, uuid_generate_v1mc(), %s, %s,
             %s, %s, %s, %s, %s, %s, %s, %s,
             %s) ON CONFLICT (crawler_table, crawler_key) DO UPDATE SET
+            updated = current_timestamp,
             created = EXCLUDED.created,
             modified = EXCLUDED.modified,
             filename = EXCLUDED.filename,

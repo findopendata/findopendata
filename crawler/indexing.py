@@ -98,7 +98,7 @@ def sketch_package_file(package_file_key,
             last_modified = dateutil.parser.parse(last_modified)
         conn = psycopg2.connect(**db_configs)
         cur = conn.cursor()
-        cur.execute(r"""SELECT max(modified)
+        cur.execute(r"""SELECT max(updated)
                     FROM findopendata.column_sketches
                     WHERE package_file_key = %s
                     """, (package_file_key,))
@@ -167,7 +167,7 @@ def sketch_package_file(package_file_key,
                         %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (package_file_key, column_name)
                     DO UPDATE
-                    SET modified = current_timestamp,
+                    SET updated = current_timestamp,
                     sample = EXCLUDED.sample,
                     count = EXCLUDED.count,
                     empty_count = EXCLUDED.empty_count,
