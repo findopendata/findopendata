@@ -3,7 +3,7 @@ import random
 import cProfile
 
 from crawler.column_sketch import ColumnSketch
-from crawler.models import WordVectorModel as lm
+from crawler.models.word_vector_models import WordVectorModel as lm
 
 
 WORDS = ["english", "french", "spanish", "russian", "italian", "arabic", 

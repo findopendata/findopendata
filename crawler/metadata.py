@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from .celery import app
 from .storage import get_object
 from .settings import db_configs
-from .models import LanguageModel as lm
+from .models.language_models import LanguageModel as lm
 
 
 logger = get_task_logger(__name__)

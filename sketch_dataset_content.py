@@ -10,36 +10,44 @@ from crawler.settings import db_configs, gcp_configs, index_configs
 from crawler.indexing import sketch_package_file
 
 
+_sql = r"""
+WITH updated_times AS (
+    SELECT package_file_key as key, max(updated) as updated
+    FROM findopendata.column_sketches
+    GROUP BY package_file_key
+)
+SELECT f.key, f.blob_name, f.format
+FROM findopendata.package_files as f, updated_times as u
+WHERE f.key = u.key AND f.updated > u.updated
+"""
+
+
+_sql_force_update = r"""
+SELECT key, blob_name, format
+FROM findopendata.package_files
+WHERE blob_name IS NOT NULL
+"""
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
             description="Creating column sketches of all package files.")
-    parser.add_argument("--force-update", action="store_true")
+    parser.add_argument("-u", "--force-update", action="store_true")
     args = parser.parse_args(sys.argv[1:])
 
+    print("Creating tasks (force_update = {})...".format(args.force_update))
     package_files = collections.deque([])
     conn = psycopg2.connect(**db_configs)
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute(r"""SELECT key, created::timestamp, modified::timestamp, 
-                        blob_name, format
-                    FROM 
-                    findopendata.package_files
-                    WHERE 
-                    blob_name IS NOT NULL
-                    """)
+    cur.execute((_sql_force_update if args.force_update else _sql))
     for row in cur:
         package_files.append(row)
     cur.close()
     conn.close()
-    print("Sending {} package files to workers.".format(len(package_files)))
-
+    print("Sending {} tasks to workers.".format(len(package_files)))
     for package_file in package_files:
-        if args.force_update:
-            modified = None
-        elif package_file["modified"] is None:
-            modified = package_file["created"]
         fmt = package_file["format"].strip().lower()
         sketch_package_file.delay(package_file_key=package_file["key"], 
-                last_modified=modified, 
                 bucket_name=gcp_configs["bucket_name"],
                 blob_name=package_file["blob_name"], 
                 dataset_format=fmt,
@@ -50,3 +58,4 @@ if __name__ == "__main__":
                 hyperloglog_p=index_configs["hyperloglog_p"],
                 column_sample_size=index_configs["column_sample_size"],
                 enable_word_vector_data=index_configs["enable_word_vector_data"])
+    print("Done sending tasks")

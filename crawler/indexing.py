@@ -58,7 +58,6 @@ _sketchers = {
 
 @app.task(ignore_result=True)
 def sketch_package_file(package_file_key, 
-        last_modified,
         bucket_name, 
         blob_name, 
         dataset_format,
@@ -74,8 +73,6 @@ def sketch_package_file(package_file_key,
 
     Args:
         package_file_key: the primary key of package_files table.
-        last_modified: the datetime of the last modification of this 
-                package file.
         bucket_name: the Cloud Storage bucket that stores the package file.
         blob_name: the relative path to the blob of the package file.
         dataset_format: one of csv, jsonl, and avro.
@@ -90,28 +87,6 @@ def sketch_package_file(package_file_key,
         enable_word_vector_data: whether to create word vectors for the 
             data values -- this can be 10x more expensive.
     """
-    # Check the latest update time of this package file.
-    if last_modified is not None:
-        # Deserialize the timestamp, as Celery JSON serialize does not support
-        # datetime type.
-        if isinstance(last_modified, str):
-            last_modified = dateutil.parser.parse(last_modified)
-        conn = psycopg2.connect(**db_configs)
-        cur = conn.cursor()
-        cur.execute(r"""SELECT max(updated)
-                    FROM findopendata.column_sketches
-                    WHERE package_file_key = %s
-                    """, (package_file_key,))
-        row = cur.fetchone()
-        cur.close()
-        conn.close()
-        if row is not None:
-            last_sketched = row[0]
-            if last_sketched is not None and last_modified <= last_sketched:
-                logger.info("Skip sketching package file {}".format(
-                    package_file_key))
-                return
-
     # Build paths
     blob_path = os.path.join(bucket_name, blob_name)
 

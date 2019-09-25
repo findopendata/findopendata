@@ -3,7 +3,7 @@ import simplejson as json
 import numpy as np
 from datasketch import MinHash, HyperLogLogPlusPlus
 
-from .models import WordVectorModel
+from .models.word_vector_models import WordVectorModel
 
 
 def _is_number(x):
