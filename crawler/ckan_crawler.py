@@ -255,16 +255,18 @@ def add_ckan_packages_from_api(api_url, endpoint, bucket_name, blob_prefix,
             default, packages with updated time before the previously
             registered time will be skipped.
     """
-    logger.info("Reading last updated timestamps for endpoint {}".format(
-            endpoint))
-    conn = psycopg2.connect(**db_configs)
-    cur = conn.cursor()
-    cur.execute(r"""SELECT package_id, updated::timestamptz
-                    FROM findopendata.ckan_packages
-                    WHERE endpoint = %s""", (endpoint,))
-    updated_times = dict((package_id, updated) for package_id, updated in cur)
-    cur.close()
-    conn.close()
+    if not force_update:
+        logger.info("Reading last updated timestamps for endpoint {}".format(
+                endpoint))
+        conn = psycopg2.connect(**db_configs)
+        cur = conn.cursor()
+        cur.execute(r"""SELECT package_id, updated::timestamptz
+                        FROM findopendata.ckan_packages
+                        WHERE endpoint = %s""", (endpoint,))
+        updated_times = dict((package_id, updated) 
+                for package_id, updated in cur)
+        cur.close()
+        conn.close()
 
     logger.info("Reading CKAN API: {}".format(api_url))
     packages = read_api(api_url)
