@@ -29,7 +29,7 @@ def add_socrata_resource(metadata, app_token, bucket_name, blob_prefix,
         bucket_name: the name of the cloud storage bucket to upload to.
         blob_prefix: the prefix for all the blobs uploaded from this
             function, relative to the root of the bucket.
-        force_update: whether to force update regardless of the modified time.
+        force_update: whether to force update regardless of the updated time.
     """
 
     domain = metadata["metadata"]["domain"]
@@ -46,7 +46,7 @@ def add_socrata_resource(metadata, app_token, bucket_name, blob_prefix,
         cur = conn.cursor()
 
         # Check if the resource already exists and is updated.
-        cur.execute("SELECT modified::timestamptz "
+        cur.execute("SELECT updated::timestamptz "
                 "FROM findopendata.socrata_resources "
                 "WHERE domain = %s AND id = %s;", (domain, uid))
         row = cur.fetchone()
@@ -94,7 +94,7 @@ def add_socrata_resource(metadata, app_token, bucket_name, blob_prefix,
             "(domain, id, metadata_blob, resource_blob, original_url, "
             "dataset_size) VALUES (%s, %s, %s, %s, %s, %s) "
             "ON CONFLICT (domain, id) DO UPDATE "
-            "SET modified = current_timestamp, "
+            "SET updated = current_timestamp, "
             "metadata_blob = EXCLUDED.metadata_blob, "
             "resource_blob = EXCLUDED.resource_blob, "
             "original_url = EXCLUDED.original_url, "

@@ -40,8 +40,8 @@ CREATE TABLE IF NOT EXISTS findopendata.socrata_resources (
     dataset_size bigint NOT NULL,
     -- The time this resource is added.
     added timestamp default current_timestamp,
-    -- The time this resource record is last modified.
-    modified timestamp default current_timestamp
+    -- The time this resource record is last updated.
+    updated timestamp default current_timestamp
 );
 CREATE UNIQUE INDEX IF NOT EXISTS socrata_resources_idx ON findopendata.socrata_resources (domain, id);
 
@@ -73,8 +73,8 @@ CREATE TABLE IF NOT EXISTS findopendata.ckan_packages (
     package_blob text NOT NULL,
     -- The time this package is added 
     added timestamp default current_timestamp,
-    -- The time this package record is last modified
-    modified timestamp default current_timestamp
+    -- The time this package record is last updated
+    updated timestamp default current_timestamp
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ckan_packages_idx ON findopendata.ckan_packages (endpoint, package_id);
 
@@ -99,8 +99,8 @@ CREATE TABLE IF NOT EXISTS findopendata.ckan_resources (
     raw_metadata jsonb NOT NULL,
     -- The time this file record is added.
     added timestamp default current_timestamp,
-    -- The time this file record is last modified
-    modified timestamp default current_timestamp
+    -- The time this file record is last updated
+    updated timestamp default current_timestamp
 );
-CREATE UNIQUE INDEX IF NOT EXISTS ckan_resources_idx ON findopendata.ckan_resources (package_key, resource_id, filename);
+CREATE UNIQUE INDEX IF NOT EXISTS ckan_resources_idx ON findopendata.ckan_resources (package_key, resource_id);
 

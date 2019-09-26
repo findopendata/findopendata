@@ -29,7 +29,7 @@ SELECT b.key, b.package_blob, a.endpoint, a.name, a.region
 FROM findopendata.ckan_apis as a, findopendata.ckan_packages as b,
     updated_times as u
 WHERE a.endpoint = b.endpoint AND a.endpoint in %s 
-AND b.key = u.key AND b.modified > u.updated
+AND b.key = u.key AND b.updated > u.updated
 """
 
 if __name__ == "__main__":

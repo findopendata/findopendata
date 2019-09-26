@@ -39,7 +39,7 @@ def add_ckan_package(package, endpoint, bucket_name, blob_prefix,
         blob_prefix: the prefix for all the blobs uploaded from this
             function, relative to the root of the bucket.
         force_update: whether to force update packages in the registry. By
-            default, packages with modified time before the previously
+            default, packages with updated time before the previously
             registered time will be skipped.
     """
     package_id = package["id"]
@@ -50,7 +50,7 @@ def add_ckan_package(package, endpoint, bucket_name, blob_prefix,
 
     # Checks if this version of package has been processed.
     if not force_update:
-        cur.execute("SELECT modified::timestamptz "
+        cur.execute("SELECT updated::timestamptz "
                 "FROM findopendata.ckan_packages "
                 "WHERE endpoint = %s AND package_id = %s;",
                 (endpoint, package_id))
@@ -77,7 +77,7 @@ def add_ckan_package(package, endpoint, bucket_name, blob_prefix,
             "(endpoint, package_id, package_blob) "
             "VALUES (%s, %s, %s) "
             "ON CONFLICT (endpoint, package_id) DO UPDATE "
-            "SET modified = current_timestamp, "
+            "SET updated = current_timestamp, "
             "package_blob = EXCLUDED.package_blob RETURNING key;",
             (endpoint, package_id, package_blob.name))
     row = cur.fetchone()
@@ -138,9 +138,10 @@ def add_ckan_resource_no_download(package_key, resource):
     cur.execute("INSERT INTO findopendata.ckan_resources "
             "(package_key, resource_id, filename, original_url, raw_metadata) "
             "VALUES (%s, %s, %s, %s, %s) "
-            "ON CONFLICT (package_key, resource_id, filename) "
+            "ON CONFLICT (package_key, resource_id) "
             "DO UPDATE "
-            "SET modified = current_timestamp, "
+            "SET updated = current_timestamp, "
+            "filename = EXCLUDED.filename, "
             "original_url = EXCLUDED.original_url, "
             "raw_metadata = EXCLUDED.raw_metadata;",
             (package_key, resource_id, filename, original_url, Json(resource)))
@@ -182,8 +183,8 @@ def add_ckan_resource(package_key, resource, bucket_name, package_path):
     cur = conn.cursor()
 
     # Check if the same version of this resource has been processed.
-    cur.execute("SELECT modified::timestamptz FROM findopendata.ckan_resources "
-            "WHERE package_key = %s AND resource_id = %s LIMIT 1;",
+    cur.execute("SELECT updated::timestamptz FROM findopendata.ckan_resources "
+            "WHERE package_key = %s AND resource_id = %s;",
             (package_key, resource_id))
     row = cur.fetchone()
     if row is not None:
@@ -212,58 +213,52 @@ def add_ckan_resource(package_key, resource, bucket_name, package_path):
             logger.warning("(package={} resource={}) Failed to download {}: "
                     "{}".format(package_key, resource_id, original_url, e))
             return
-        filenames = [filename,]
 
-        # Unzip.
-        if is_zipfile(os.path.join(parent_dir, filename)):
-            filenames = unzip(os.path.join(parent_dir, filename), parent_dir)
+        # Save and register the resource file.
+        # Build blob name
+        blob_name = os.path.join(package_path, resource_id, filename)
+        try:
+            with open(os.path.join(parent_dir, filename), "rb") as f:
+                resource_blob = save_file(f, bucket_name, blob_name,
+                        guess_content_bytes=1024*10)
+        except Exception as e:
+            logger.warning("(package={} resource={}) Failed to save local "
+                    "file {} to {}: {}".format(package_key, resource_id,
+                        filename, blob_name, e))
+            return
+        logger.info("(package={} resource={} filename={}) Saved resource "
+                "from {} to {}".format(package_key, resource_id, filename,
+                    original_url, blob_name))
 
-        # Save and register each file.
-        for filename in filenames:
-            # Build blob name
-            blob_name = os.path.join(package_path, resource_id, filename)
-            try:
-                with open(os.path.join(parent_dir, filename), "rb") as f:
-                    resource_blob = save_file(f, bucket_name, blob_name,
-                            guess_content_bytes=1024*10)
-            except Exception as e:
-                logger.warning("(package={} resource={}) Failed to save local "
-                        "file {} to {}: {}".format(package_key, resource_id,
-                            filename, blob_name, e))
-                continue
-            logger.info("(package={} resource={} filename={}) Saved resource "
-                    "from {} to {}".format(package_key, resource_id, filename,
-                        original_url, blob_name))
+    # Initialize Postgres connection for registering resource.
+    # A new connection is created here to prevent the download
+    # from hogging the connection pool.
+    conn = psycopg2.connect(**db_configs)
+    cur = conn.cursor()
 
-            # Initialize Postgres connection for registering resource.
-            # A new connection is created here to prevent the download
-            # from hogging the connection pool.
-            conn = psycopg2.connect(**db_configs)
-            cur = conn.cursor()
+    # Register this resource.
+    cur.execute("INSERT INTO findopendata.ckan_resources "
+            "(package_key, resource_id, filename, resource_blob, "
+            "original_url, file_size, raw_metadata) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s) "
+            "ON CONFLICT (package_key, resource_id, filename) "
+            "DO UPDATE "
+            "SET updated = current_timestamp, "
+            "resource_blob = EXCLUDED.resource_blob, "
+            "original_url = EXCLUDED.original_url, "
+            "file_size = EXCLUDED.file_size, "
+            "raw_metadata = EXCLUDED.raw_metadata;",
+            (package_key, resource_id, filename,
+                resource_blob.name, original_url,
+                resource_blob.size, Json(resource)))
+    conn.commit()
 
-            # Register this resource.
-            cur.execute("INSERT INTO findopendata.ckan_resources "
-                    "(package_key, resource_id, filename, resource_blob, "
-                    "original_url, file_size, raw_metadata) "
-                    "VALUES (%s, %s, %s, %s, %s, %s, %s) "
-                    "ON CONFLICT (package_key, resource_id, filename) "
-                    "DO UPDATE "
-                    "SET modified = current_timestamp, "
-                    "resource_blob = EXCLUDED.resource_blob, "
-                    "original_url = EXCLUDED.original_url, "
-                    "file_size = EXCLUDED.file_size, "
-                    "raw_metadata = EXCLUDED.raw_metadata;",
-                    (package_key, resource_id, filename,
-                        resource_blob.name, original_url,
-                        resource_blob.size, Json(resource)))
-            conn.commit()
+    # Close database connection for registering resource.
+    cur.close()
+    conn.close()
 
-            # Close database connection for registering resource.
-            cur.close()
-            conn.close()
-
-            logger.info("(package={}, resource={}, filename={}) Registered "
-                    "resource.".format(package_key, resource_id, filename))
+    logger.info("(package={}, resource={}, filename={}) Registered "
+            "resource.".format(package_key, resource_id, filename))
 
 
 @app.task(ignore_result=True)
@@ -279,7 +274,7 @@ def add_ckan_packages_from_api(api_url, endpoint, bucket_name, blob_prefix,
         blob_prefix: the prefix for all the blobs uploaded from this
             function, relative to the root of the bucket.
         force_update: whether to force update packages in the registry. By
-            default, packages with modified time before the previously
+            default, packages with updated time before the previously
             registered time will be skipped.
     """
     logger.info("(api_url={})".format(api_url))
