@@ -8,16 +8,11 @@ import psycopg2
 from crawler.settings import db_configs, gcp_configs
 from crawler.metadata import index_ckan_package
 
-_endpoints = (
-    "open.canada.ca/data/en",
-    "catalog.data.gov",
-    "data.gov.uk",
-)
 
 _sql_ckan_force_update = r"""
 SELECT b.key, b.package_blob, a.endpoint, a.name, a.region
 FROM findopendata.ckan_apis as a, findopendata.ckan_packages as b
-WHERE a.endpoint = b.endpoint AND a.endpoint in %s
+WHERE a.endpoint = b.endpoint AND a.enabled
 """
 
 _sql_ckan = r"""
@@ -28,7 +23,7 @@ WITH updated_times AS (
 SELECT b.key, b.package_blob, a.endpoint, a.name, a.region
 FROM findopendata.ckan_apis as a, findopendata.ckan_packages as b,
     updated_times as u
-WHERE a.endpoint = b.endpoint AND a.endpoint in %s 
+WHERE a.endpoint = b.endpoint AND a.enabled
 AND b.key = u.key AND b.updated > u.updated
 """
 
@@ -44,8 +39,7 @@ if __name__ == "__main__":
     ckan_packages = collections.deque([])
     conn = psycopg2.connect(**db_configs)
     cur = conn.cursor()
-    cur.execute((_sql_ckan_force_update if args.force_update else _sql_ckan),
-            (_endpoints,))
+    cur.execute((_sql_ckan_force_update if args.force_update else _sql_ckan))
     for row in cur:
         ckan_packages.append(row)
     cur.close()
