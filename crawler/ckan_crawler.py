@@ -241,7 +241,7 @@ def add_ckan_resource(package_key, resource, bucket_name, package_path):
             "(package_key, resource_id, filename, resource_blob, "
             "original_url, file_size, raw_metadata) "
             "VALUES (%s, %s, %s, %s, %s, %s, %s) "
-            "ON CONFLICT (package_key, resource_id, filename) "
+            "ON CONFLICT (package_key, resource_id) "
             "DO UPDATE "
             "SET updated = current_timestamp, "
             "resource_blob = EXCLUDED.resource_blob, "
