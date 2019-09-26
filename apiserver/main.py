@@ -385,6 +385,9 @@ def joinable_column_search():
         _execute_get_column_sketches(cursor, tuple(column_ids),
                 original_hosts=original_host_filter)
         for column in cursor:
+            # Skip columns from query table.
+            if column["package_file_id"] == query["package_file_id"]:
+                continue
             # Compute the similarities for each column in the result.
             jaccard = query_minhash.jaccard(LeanMinHash(
                     seed=column["seed"], hashvalues=column["minhash"])) 
