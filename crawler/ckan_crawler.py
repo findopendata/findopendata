@@ -27,8 +27,7 @@ accepted_resource_formats = ["csv",]
 
 
 @app.task(ignore_result=True)
-def add_ckan_package(package, endpoint, bucket_name, blob_prefix,
-        force_update):
+def add_ckan_package(package, endpoint, bucket_name, blob_prefix):
     """Registers the CKAN package and starts tasks for retrieving and adding
     associated resources (i.e. files).
 
@@ -38,39 +37,18 @@ def add_ckan_package(package, endpoint, bucket_name, blob_prefix,
         bucket_name: the name of the cloud storage bucket to upload all blobs.
         blob_prefix: the prefix for all the blobs uploaded from this
             function, relative to the root of the bucket.
-        force_update: whether to force update packages in the registry. By
-            default, packages with updated time before the previously
-            registered time will be skipped.
     """
     package_id = package["id"]
-
-    # Initialize Postgres connection.
-    conn = psycopg2.connect(**db_configs)
-    cur = conn.cursor()
-
-    # Checks if this version of package has been processed.
-    if not force_update:
-        cur.execute("SELECT updated::timestamptz "
-                "FROM findopendata.ckan_packages "
-                "WHERE endpoint = %s AND package_id = %s;",
-                (endpoint, package_id))
-        row = cur.fetchone()
-        if row is not None:
-            last_registered = row[0]
-            last_updated = extract_timestamp_from_package(package)
-            if last_updated is not None and last_updated <= last_registered:
-                logger.info("(endpoint={} package={}) Skipping (updated: {}, "
-                        "registered: {})".format(endpoint, package_id,
-                            last_updated, last_registered))
-                cur.close()
-                conn.close()
-                return
 
     # Upload the package JSON.
     package_blob = save_object(package, bucket_name,
             os.path.join(blob_prefix, endpoint, package_id, "package.json"))
     logger.info("(endpoint={} package={}) Saved package JSON.".format(endpoint,
         package_id))
+
+    # Initialize Postgres connection.
+    conn = psycopg2.connect(**db_configs)
+    cur = conn.cursor()
 
     # Register the package.
     cur.execute("INSERT INTO findopendata.ckan_packages "
@@ -277,9 +255,26 @@ def add_ckan_packages_from_api(api_url, endpoint, bucket_name, blob_prefix,
             default, packages with updated time before the previously
             registered time will be skipped.
     """
-    logger.info("(api_url={})".format(api_url))
+    logger.info("Reading last updated timestamps for endpoint {}".format(
+            endpoint))
+    conn = psycopg2.connect(**db_configs)
+    cur = conn.cursor()
+    cur.execute(r"""SELECT package_id, updated::timestamptz
+                    FROM findopendata.ckan_packages
+                    WHERE endpoint = %s""", (endpoint,))
+    updated_times = dict((package_id, updated) for package_id, updated in cur)
+    cur.close()
+    conn.close()
+
+    logger.info("Reading CKAN API: {}".format(api_url))
     packages = read_api(api_url)
     for package in packages:
+        if not force_update:
+            metadata_modified = extract_timestamp_from_package(package)
+            package_updated = updated_times.get(package["id"])
+            if metadata_modified is not None and package_updated is not None \
+                    and metadata_modified <= package_updated:
+                continue
         add_ckan_package.delay(package, endpoint=endpoint, 
                 bucket_name=bucket_name, blob_prefix=blob_prefix, 
                 force_update=force_update)
