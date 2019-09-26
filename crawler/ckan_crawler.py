@@ -276,8 +276,7 @@ def add_ckan_packages_from_api(api_url, endpoint, bucket_name, blob_prefix,
                     and metadata_modified <= package_updated:
                 continue
         add_ckan_package.delay(package, endpoint=endpoint, 
-                bucket_name=bucket_name, blob_prefix=blob_prefix, 
-                force_update=force_update)
+                bucket_name=bucket_name, blob_prefix=blob_prefix)
 
 
 @app.task(ignore_result=True)
