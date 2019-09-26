@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS findopendata.ckan_packages (
     -- The CKAN API endpoint URL without HTTP scheme.
     endpoint text NOT NULL,
     -- The CKAN package ID.
-    package_id uuid NOT NULL,
+    package_id text NOT NULL,
     -- The storage blob name of the original package JSON.
     package_blob text NOT NULL,
     -- The time this package is added 
@@ -86,7 +86,7 @@ CREATE TABLE IF NOT EXISTS findopendata.ckan_resources (
     -- The package key associated with this file.
     package_key serial NOT NULL REFERENCES findopendata.ckan_packages(key),
     -- The resource ID of this file.
-    resource_id uuid NOT NULL,
+    resource_id text NOT NULL,
     -- The filename relative to this resource.
     filename text,
     -- The storage blob name of this file.
