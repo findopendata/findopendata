@@ -99,7 +99,7 @@ class PackageDetail extends React.Component {
               }).map((f) =>
                 <tr key={f.id}>
                   <td>
-                    {f.filename} &nbsp;
+                    {f.name} &nbsp;
                     {
                       f.available ? <Link to={`/package-file/${f.id}`}>[Preview]&nbsp;</Link>: ''
                     }
