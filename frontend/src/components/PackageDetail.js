@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  Table, ButtonToolbar, ButtonGroup, Button, Badge,
+  Table, ButtonToolbar, ButtonGroup, Button, Badge, CardColumns, Card,
 } from 'react-bootstrap';
 import { Link } from "react-router-dom";
 import { FetchPackage } from '../tools/RemoteData';
@@ -41,7 +41,15 @@ class PackageDetail extends React.Component {
   }
   render() {
     const pac = this.state.pac;
-    const files = this.state.files;
+    const files = this.state.files.sort((f1, f2) => {
+      if (f1.filename < f2.filename) {
+        return -1;
+      }
+      if (f1.filename > f2.filename) {
+        return 1;
+      }
+      return 0;
+    });
     return (
       <div>
         <div className="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-4 pb-2 mb-3 border-bottom">
@@ -78,40 +86,28 @@ class PackageDetail extends React.Component {
         <h3>License</h3>
         <p><a href={pac.license_url}>{pac.license_title}</a></p>
         <h3>Files</h3>
-        <Table responsive striped bordered hover>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Format</th>
-              <th>Updated</th>
-            </tr>
-          </thead>
-          <tbody>
-            {
-              files.sort((f1, f2) => {
-                if (f1.filename < f2.filename) {
-                  return -1;
-                }
-                if (f1.filename > f2.filename) {
-                  return 1;
-                }
-                return 0;
-              }).map((f) =>
-                <tr key={f.id}>
-                  <td>
-                    {f.name} &nbsp;
-                    {
-                      f.available ? <Link to={`/package-file/${f.id}`}>[Preview]&nbsp;</Link>: ''
-                    }
-                    <a href={f.original_url}>[Download]</a>
-                  </td>
-                  <td>{f.format}</td>
-                  <td>{f.modified ? f.modified : f.created}</td>
-                </tr>
-              )
-            }
-          </tbody>
-        </Table>
+        <CardColumns>
+          {
+            files.map((f) => 
+              <Card key={f.id}>
+                <Card.Header>{f.format}</Card.Header>
+                <Card.Body>
+                  <Card.Title>{f.name}</Card.Title>
+                  <Card.Subtitle className="mb-2 text-muted">
+                    Updated: {f.modified ? f.modified : f.created}
+                  </Card.Subtitle>
+                  <Card.Text>
+                  {f.filename}
+                  </Card.Text>
+                  {
+                   f.available ? <Link className="btn btn-primary btn-sm m-2" to={`/package-file/${f.id}`}>Preview</Link> : ''
+                  }
+                  <a className="btn btn-info btn-sm m-2" href={f.original_url}>Download</a>
+                </Card.Body>
+              </Card>
+            )
+          }
+        </CardColumns>
       </div>
     );
   }

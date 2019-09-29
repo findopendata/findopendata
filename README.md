@@ -4,12 +4,18 @@
 
 This is the source code repository for [findopendata.com](https://findopendata.com).
 The project goal is to make a search engine for Open Data with rich 
-features beyond simple keyword search. For example:
-    
- * Auto grouping of relevant datasets that should be consumed together
- * Time and location-based query of datasets
- * Content-based search such as finding joinable tables
+features beyond simple keyword search. The current search methods are:
+
+* Keyword search based on metadata
+* Similar dataset search based on metadata similarity
+* Joinable table search based on content (i.e., data values) similarity using LSH index
+
+Next steps:
+
+ * Unionable/similar table search based on content similarity
+ * Time and location-based serach based on extracted timestamps and Geo tags
  * Dataset versioning
+ * API for external data science tools (e.g., Jupyter Notebook, Plot.ly)
 
 **This is a work in progress.**
 
