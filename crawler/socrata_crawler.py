@@ -69,13 +69,17 @@ def add_socrata_resource(metadata, app_token, bucket_name, blob_prefix,
             "/".join([blob_prefix, domain, uid, "metadata.json"]))
     logger.info("(domain={} id={}) Saved metadata.".format(domain, uid))
 
+    # Get the field names from metadata.
+    field_names = metadata["resource"]["columns_field_name"]
+
     # Download and upload the resource.
     logger.info("(domain={} id={}) Saving resource from {}.".format(
         domain, uid, original_url))
     resource_blob_name = "/".join([blob_prefix, domain, uid, "resource.avro"])
     try:
-        records = JSON2AvroRecords(socrata_records(original_url, app_token))
-        resource_blob = save_avro_records(records.schema, records.get(), 
+        records = JSON2AvroRecords(socrata_records(original_url, app_token),
+                field_names=field_names)
+        resource_blob = save_avro_records(records.schema, records.get(),
                 bucket_name, resource_blob_name,
                 codec="snappy")
     except Exception as e:
@@ -196,7 +200,7 @@ def add_socrata_discovery_apis(force_update):
     cur.close()
     conn.close()
     for api_url in api_urls:
-        add_socrata_resources_from_api.delay(api_url, 
+        add_socrata_resources_from_api.delay(api_url,
                 gcp_configs.get("bucket_name"),
                 crawler_configs.get("socrata_blob_prefix"), force_update)
         logger.info("Adding Socrata Discovery API {} to the crawler".format(

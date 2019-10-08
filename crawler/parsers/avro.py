@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 import fastavro
 from genson import SchemaBuilder
 
@@ -19,7 +21,7 @@ def _avro_type(json_type):
     return JSON_TO_AVRO_TYPES.get(json_type)
 
 
-def _json_to_avro_schema(json_schema, name="Root"):
+def _json_to_avro_schema(json_schema, field_names=None, name="Root"):
     if json_schema["type"] == "object":
         if "properties" not in json_schema:
             return {"type" : "record", "name": name}
@@ -32,6 +34,10 @@ def _json_to_avro_schema(json_schema, name="Root"):
             else:
                 avro_type = ["null", avro_type]
             fields.append({"name": prop, "type": avro_type})
+        if field_names is not None:
+            field_order = dict((field, i)
+                    for i, field in enumerate(field_names))
+            fields = sorted(fields, key=lambda f: field_order.get(f["name"]))
         return {"type": "record", "name": name, "fields": fields}
     elif json_schema["type"] == "array":
         return {
@@ -44,7 +50,7 @@ def _json_to_avro_schema(json_schema, name="Root"):
     return _avro_type(json_schema["type"])
 
 
-def _infer_schema(records):
+def _infer_schema(records, field_names=None):
     builder = SchemaBuilder()
     count = 0
     for record in records:
@@ -56,7 +62,7 @@ def _infer_schema(records):
                 "name" : "Root",
                 }
     #print(builder.to_json(indent=2))
-    schema = _json_to_avro_schema(builder.to_schema())
+    schema = _json_to_avro_schema(builder.to_schema(), field_names)
     #print(json.dumps(schema, indent=True))
     return schema
 
@@ -75,13 +81,15 @@ class JSON2AvroRecords(object):
     """A wrapper reader class for reading JSON data (deserialized as Python
     dict objects) with schema inference."""
 
-    def __init__(self, json_records, head=25000):
+    def __init__(self, json_records, field_names=None, head=25000):
         """Initializes from reading JSON records with schema
         inference.
 
         Args:
             json_records: an iterator of JSON records (deserialized as Python
                 dict objects).
+            field_names: a list of field names used to order the Avro fields,
+                optional.
             head: the number of records in the beginning to use for schema
                 inference.
         """
@@ -89,7 +97,7 @@ class JSON2AvroRecords(object):
             raise ValueError("json_records must be an iterator.")
         self._json_records = json_records
         self._head = [r for _, r in zip(range(head), self._json_records)]
-        self._schema = _infer_schema(self._head)
+        self._schema = _infer_schema(self._head, field_names)
 
     @property
     def schema(self):
@@ -104,5 +112,8 @@ class JSON2AvroRecords(object):
 
 def avro2json(fileobj_binary):
     reader = fastavro.reader(fileobj_binary)
+    schema = reader.writer_schema
+    field_names = [f["name"] for f in schema["fields"]]
     for record in reader:
-        yield record
+        yield OrderedDict((f, record[f]) for f in field_names)
+

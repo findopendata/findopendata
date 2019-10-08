@@ -27,17 +27,17 @@ gcs_client = storage.Client(
 
 # The GCSFileSystem interface
 gcs_fs = GCSFileSystem(
-        token=gcp_configs.get("service_account_file"), 
+        token=gcp_configs.get("service_account_file"),
         check_connection=True)
 
 
 def get_object(bucket_name, blob_name):
     """Get a JSON object from bucket as a Python dictionary.
-    
+
     Args:
         bucket_name: the name of the bucket.
         blob_name: the name of the blob object relative to the bucket.
-    
+
     Returns: a Python dictionary.
     """
     blob = gcs_client.bucket(bucket_name).get_blob(blob_name)
@@ -46,9 +46,9 @@ def get_object(bucket_name, blob_name):
     return json.loads(blob.download_as_string().decode("utf-8"))
 
 
-def save_file(fileobj, bucket_name, blob_name, 
+def save_file(fileobj, bucket_name, blob_name,
         guess_content_bytes=8192,
-        gzip=False, 
+        gzip=False,
         public=False):
     """Uploads a file to the bucket.
 
@@ -57,7 +57,7 @@ def save_file(fileobj, bucket_name, blob_name,
         bucket_name: the name of the destination bucket.
         blob_name: the name of the destination blob object relative to the
             bucket.
-        guess_content_btypes: number of bytes for guess content type and 
+        guess_content_btypes: number of bytes for guess content type and
             encoding.
         gzip (default True): whether to gzip compress the input fileobj.
         public (default False): whether to make the resulting blob object
@@ -85,7 +85,7 @@ def save_file(fileobj, bucket_name, blob_name,
     return blob
 
 
-def save_avro_records(schema, records, bucket_name, blob_name, 
+def save_avro_records(schema, records, bucket_name, blob_name,
         codec="snappy",
         public=False):
     """Uplaods Avro records.
@@ -116,8 +116,8 @@ def save_avro_records(schema, records, bucket_name, blob_name,
     return blob
 
 
-def save_object(obj, bucket_name, blob_name, 
-        gzip=False, 
+def save_object(obj, bucket_name, blob_name,
+        gzip=False,
         public=False):
     """Uploads a single JSON-serializable Python object to the bucket.
 
