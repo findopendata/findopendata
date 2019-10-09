@@ -5,6 +5,7 @@ from psycopg2.extras import Json, RealDictCursor
 from celery.utils.log import get_task_logger
 import spacy
 from bs4 import BeautifulSoup
+import requests
 
 from .celery import app
 from .storage import get_object
@@ -17,10 +18,10 @@ logger = get_task_logger(__name__)
 
 @app.task(ignore_result=True)
 def index_ckan_package(
-        crawler_package_key, 
-        package_blob_name, 
-        endpoint, 
-        endpoint_name, 
+        crawler_package_key,
+        package_blob_name,
+        endpoint,
+        endpoint_name,
         endpoint_region,
         bucket_name):
     """Register the crawled CKAN package into the centralized packages table for
@@ -79,24 +80,24 @@ def index_ckan_package(
     # Save package
     cur.execute(r"""INSERT INTO findopendata.packages
             (
-                crawler_table, 
-                crawler_key, 
-                id, 
-                original_host, 
+                crawler_table,
+                crawler_key,
+                id,
+                original_host,
                 original_host_display_name,
                 original_host_region,
-                num_files, 
+                num_files,
                 fts_doc,
-                created, 
-                modified, 
-                title, 
+                created,
+                modified,
+                title,
                 title_spacy,
                 name,
-                description, 
+                description,
                 description_spacy,
-                tags, 
+                tags,
                 license_title,
-                license_url, 
+                license_url,
                 organization_display_name,
                 organization_name,
                 organization_image_url,
@@ -131,23 +132,23 @@ def index_ckan_package(
             raw_metadata = EXCLUDED.raw_metadata
             RETURNING key;""",
             (
-                crawler_table, 
-                crawler_key, 
-                original_host, 
+                crawler_table,
+                crawler_key,
+                original_host,
                 original_host_display_name,
                 original_host_region,
-                num_files, 
+                num_files,
                 fts_doc,
-                created, 
-                modified, 
-                title, 
+                created,
+                modified,
+                title,
                 Json(title_spacy),
                 name,
-                description, 
+                description,
                 Json(description_spacy),
-                tags, 
+                tags,
                 license_title,
-                license_url, 
+                license_url,
                 organization_display_name,
                 organization_name,
                 organization_image_url,
@@ -174,12 +175,12 @@ def index_ckan_package(
 
 @app.task(ignore_result=True)
 def index_ckan_package_file(
-        crawler_resource_key, 
-        package_key, 
+        crawler_resource_key,
+        package_key,
         bucket_name,
-        blob_name, 
-        filename, 
-        file_size, 
+        blob_name,
+        filename,
+        file_size,
         raw_metadata):
     """Register the CKAN resource into the package_files table by doing the
     following:
@@ -200,7 +201,7 @@ def index_ckan_package_file(
     created = raw_metadata.get("created", None)
     modified = raw_metadata.get("last_modified", None)
     name = raw_metadata.get("name", None)
-    description = BeautifulSoup(raw_metadata.get("description", ""), 
+    description = BeautifulSoup(raw_metadata.get("description", ""),
             "html.parser").get_text()
     description_spacy = lm.process(description).to_json()
     original_url = raw_metadata.get("url", None)
@@ -208,23 +209,23 @@ def index_ckan_package_file(
 
     # Get connection.
     conn = psycopg2.connect(**db_configs)
-    # Get CKAN resources
+    # Save CKAN pacakge file
     cur = conn.cursor(cursor_factory=RealDictCursor)
     cur.execute(r"""INSERT INTO findopendata.package_files
             (
-                package_key, 
-                crawler_table, 
-                crawler_key, 
-                id, 
-                created, 
+                package_key,
+                crawler_table,
+                crawler_key,
+                id,
+                created,
                 modified,
-                filename, 
-                name, 
-                description, 
+                filename,
+                name,
+                description,
                 description_spacy,
                 original_url,
-                format, 
-                file_size, 
+                format,
+                file_size,
                 blob_name,
                 raw_metadata
             ) VALUES
@@ -245,18 +246,18 @@ def index_ckan_package_file(
             raw_metadata = EXCLUDED.raw_metadata
             RETURNING key;""",
             (
-                package_key, 
-                crawler_table, 
-                crawler_resource_key, 
-                created, 
+                package_key,
+                crawler_table,
+                crawler_resource_key,
+                created,
                 modified,
-                filename, 
-                name, 
-                description, 
+                filename,
+                name,
+                description,
                 Json(description_spacy),
                 original_url,
-                file_format, 
-                file_size, 
+                file_format,
+                file_size,
                 blob_name,
                 Json(raw_metadata)
             ))
@@ -265,3 +266,195 @@ def index_ckan_package_file(
     conn.close()
     logger.info("Indexed CKAN resource {} into package_files".format(
         crawler_resource_key))
+
+
+@app.task(ignore_result=True)
+def index_socrata_resource(
+        crawler_key,
+        domain,
+        metadata_blob_name,
+        resource_blob_name,
+        dataset_size,
+        bucket_name):
+    """Register the crawled Scorata resource into the centralized packages
+    table for all types of packages to make it searchable.
+    The following processes are performed:
+        1. Extract metadata such as title and description from the raw metadata
+            JSON file.
+        2. Create the fulltext search doc for keyword search.
+        3. Extract named entities from the title and description for
+            metadata enrichment.
+    """
+    # Get raw metadata
+    metadata = get_object(bucket_name, metadata_blob_name)
+
+    # Get connection.
+    conn = psycopg2.connect(**db_configs)
+    # Get CKAN resources
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+
+    # Package fields extracted from raw metadata.
+    created = metadata["resource"]["createdAt"]
+    modified = metadata["resource"]["updatedAt"]
+    title = metadata["resource"]["name"]
+    title_spacy = None
+    name = None
+    description = metadata["resource"]["description"]
+    description_spacy = None
+    tags = metadata["resource"]["classification"]["domain_tags"]
+    license_title = metadata["metadata"]["license"]
+    license_url = None
+    organization_display_name = metadata["resource"]["attribution"]
+    organization_name = None
+    organization_image_url = None
+    organization_description = None
+
+    # Package fields assigned
+    crawler_table = "socrata_resources"
+    original_host = domain
+    original_host_display_name = _get_socrata_original_host_display_name(domain)
+    original_host_region = None
+    num_files = 1
+    fts_doc = " ".join(s for s in [title, description] + tags if s is not None)
+
+    # Save package
+    cur.execute(r"""INSERT INTO findopendata.packages
+            (
+                crawler_table,
+                crawler_key,
+                id,
+                original_host,
+                original_host_display_name,
+                original_host_region,
+                num_files,
+                fts_doc,
+                created,
+                modified,
+                title,
+                title_spacy,
+                name,
+                description,
+                description_spacy,
+                tags,
+                license_title,
+                license_url,
+                organization_display_name,
+                organization_name,
+                organization_image_url,
+                organization_description,
+                raw_metadata
+            )
+            VALUES (
+                %s, %s, uuid_generate_v1mc(), %s, %s, %s, %s, to_tsvector(%s),
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+            )
+            ON CONFLICT (crawler_table, crawler_key) DO UPDATE SET
+            original_host = EXCLUDED.original_host,
+            original_host_display_name = EXCLUDED.original_host_display_name,
+            original_host_region = EXCLUDED.original_host_region,
+            num_files = EXCLUDED.num_files,
+            fts_doc = EXCLUDED.fts_doc,
+            updated = current_timestamp,
+            created = EXCLUDED.created,
+            modified = EXCLUDED.modified,
+            title = EXCLUDED.title,
+            title_spacy = EXCLUDED.title_spacy,
+            name = EXCLUDED.name,
+            description = EXCLUDED.description,
+            description_spacy = EXCLUDED.description_spacy,
+            tags = EXCLUDED.tags,
+            license_title = EXCLUDED.license_title,
+            license_url = EXCLUDED.license_url,
+            organization_display_name = EXCLUDED.organization_display_name,
+            organization_name = EXCLUDED.organization_name,
+            organization_image_url = EXCLUDED.organization_image_url,
+            organization_description = EXCLUDED.organization_description,
+            raw_metadata = EXCLUDED.raw_metadata
+            RETURNING key;""",
+            (
+                crawler_table,
+                crawler_key,
+                original_host,
+                original_host_display_name,
+                original_host_region,
+                num_files,
+                fts_doc,
+                created,
+                modified,
+                title,
+                Json(title_spacy),
+                name,
+                description,
+                Json(description_spacy),
+                tags,
+                license_title,
+                license_url,
+                organization_display_name,
+                organization_name,
+                organization_image_url,
+                organization_description,
+                Json(metadata),
+            ))
+    package_key = cur.fetchone()["key"]
+
+    # Package file fields extracted
+    created = metadata["resource"]["createdAt"]
+    modified = metadata["resource"]["data_updated_at"]
+    original_url = metadata["link"]
+    file_size = dataset_size
+    blob_name = resource_blob_name
+    raw_metadata = metadata["resource"]
+
+    # Save pacakge file:
+    cur.execute(r"""INSERT INTO findopendata.package_files
+            (
+                package_key,
+                crawler_table,
+                crawler_key,
+                id,
+                created,
+                modified,
+                original_url,
+                file_size,
+                blob_name,
+                raw_metadata
+            ) VALUES
+            (%s, %s, %s, uuid_generate_v1mc(), %s,
+            %s, %s, %s, %s, %s)
+            ON CONFLICT (crawler_table, crawler_key) DO UPDATE SET
+            updated = current_timestamp,
+            created = EXCLUDED.created,
+            modified = EXCLUDED.modified,
+            original_url = EXCLUDED.original_url,
+            file_size = EXCLUDED.file_size,
+            blob_name = EXCLUDED.blob_name,
+            raw_metadata = EXCLUDED.raw_metadata
+            RETURNING key;""",
+            (
+                package_key,
+                crawler_table,
+                crawler_key,
+                created,
+                modified,
+                original_url,
+                file_size,
+                blob_name,
+                Json(raw_metadata)
+            ))
+
+    # Commit all changes.
+    conn.commit()
+    conn.close()
+
+
+# Cached original host display names
+_socrata_original_host_display_names = {}
+
+def _get_socrata_original_host_display_name(domain):
+    if domain not in _socrata_original_host_display_names:
+        resp = requests.get("https://"+domain)
+        resp.raise_for_status()
+        _socrata_original_host_display_names[domain] = \
+                BeautifulSoup(resp.text).title.string
+    return _socrata_original_host_display_names[domain]
+
