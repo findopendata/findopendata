@@ -288,23 +288,18 @@ def index_socrata_resource(
     # Get raw metadata
     metadata = get_object(bucket_name, metadata_blob_name)
 
-    # Get connection.
-    conn = psycopg2.connect(**db_configs)
-    # Get CKAN resources
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-
     # Package fields extracted from raw metadata.
-    created = metadata["resource"]["createdAt"]
-    modified = metadata["resource"]["updatedAt"]
-    title = metadata["resource"]["name"]
+    created = metadata["resource"].get("createdAt")
+    modified = metadata["resource"].get("updatedAt")
+    title = metadata["resource"].get("name")
     title_spacy = None
     name = None
-    description = metadata["resource"]["description"]
+    description = metadata["resource"].get("description")
     description_spacy = None
-    tags = metadata["resource"]["classification"]["domain_tags"]
-    license_title = metadata["metadata"]["license"]
+    tags = metadata["classification"].get("domain_tags")
+    license_title = metadata["metadata"].get("license")
     license_url = None
-    organization_display_name = metadata["resource"]["attribution"]
+    organization_display_name = metadata["resource"].get("attribution")
     organization_name = None
     organization_image_url = None
     organization_description = None
@@ -316,6 +311,11 @@ def index_socrata_resource(
     original_host_region = None
     num_files = 1
     fts_doc = " ".join(s for s in [title, description] + tags if s is not None)
+
+    # Get connection.
+    conn = psycopg2.connect(**db_configs)
+    # Get CKAN resources
+    cur = conn.cursor(cursor_factory=RealDictCursor)
 
     # Save package
     cur.execute(r"""INSERT INTO findopendata.packages
@@ -398,8 +398,8 @@ def index_socrata_resource(
     package_key = cur.fetchone()["key"]
 
     # Package file fields extracted
-    created = metadata["resource"]["createdAt"]
-    modified = metadata["resource"]["data_updated_at"]
+    created = metadata["resource"].get("createdAt")
+    modified = metadata["resource"].get("data_updated_at")
     original_url = metadata["link"]
     file_size = dataset_size
     blob_name = resource_blob_name
@@ -445,16 +445,18 @@ def index_socrata_resource(
     # Commit all changes.
     conn.commit()
     conn.close()
+    logger.info("Indexed Socrata resource {}".format(crawler_key))
 
 
 # Cached original host display names
-_socrata_original_host_display_names = {}
+_socrata_original_host_display_names = dict()
 
 def _get_socrata_original_host_display_name(domain):
     if domain not in _socrata_original_host_display_names:
         resp = requests.get("https://"+domain)
         resp.raise_for_status()
-        _socrata_original_host_display_names[domain] = \
-                BeautifulSoup(resp.text).title.string
+        name = BeautifulSoup(resp.text, "html.parser").title.string
+        name = name.split("|")[0].strip()
+        _socrata_original_host_display_names[domain] = name
     return _socrata_original_host_display_names[domain]
 
