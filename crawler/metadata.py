@@ -456,7 +456,6 @@ def _get_socrata_original_host_display_name(domain):
         resp = requests.get("https://"+domain)
         resp.raise_for_status()
         name = BeautifulSoup(resp.text, "html.parser").title.string
-        name = name.split("|")[0].strip()
         _socrata_original_host_display_names[domain] = name
     return _socrata_original_host_display_names[domain]
 
