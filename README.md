@@ -19,7 +19,7 @@ Next steps:
 
 **This is a work in progress.**
 
-![Screenshot](screenshot.png)
+![Screenshot](screencapture.gif)
 
 ## System Overview
 
