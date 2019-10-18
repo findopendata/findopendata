@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  Table, ButtonToolbar, ButtonGroup, Button, Badge, CardColumns, Card,
+  ButtonToolbar, ButtonGroup, Button, Badge, CardColumns, Card,
 } from 'react-bootstrap';
 import { Link } from "react-router-dom";
 import { FetchPackage } from '../tools/RemoteData';

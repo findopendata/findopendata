@@ -10,9 +10,9 @@ from crawler.metadata import index_ckan_package, index_socrata_resource
 
 
 _sql_ckan_force_update = r"""
-SELECT b.key, b.package_blob, a.endpoint, a.name, a.region
-FROM findopendata.ckan_apis as a, findopendata.ckan_packages as b
-WHERE a.endpoint = b.endpoint AND a.enabled
+SELECT p.key, p.package_blob, p.endpoint
+FROM findopendata.original_hosts as h, findopendata.ckan_packages as p
+WHERE p.endpoint = h.original_host and h.enabled
 """
 
 _sql_ckan = r"""
@@ -22,26 +22,26 @@ WITH updated_times AS (
     WHERE crawler_table = 'ckan_packages'
 ),
 enabled_packages AS (
-    SELECT b.key, b.package_blob, a.endpoint, a.name, a.region,
-        b.updated
-    FROM findopendata.ckan_apis as a, findopendata.ckan_packages as b
-    WHERE a.endpoint = b.endpoint AND a.enabled
+    SELECT p.key, p.package_blob, p.endpoint
+    FROM findopendata.original_hosts as h, findopendata.ckan_packages as p
+    WHERE p.endpoint = h.original_host and h.enabled
 ),
 packages AS (
-    SELECT a.key, a.package_blob, a.endpoint, a.name, a.region,
-        a.updated as crawler_updated, u.updated as package_updated
+    SELECT a.key, a.package_blob, a.endpoint, a.updated as crawler_updated, 
+        u.updated as package_updated
     FROM enabled_packages AS a
     LEFT JOIN updated_times AS u
     ON a.key = u.key
 )
-SELECT key, package_blob, endpoint, name, region
+SELECT key, package_blob, endpoint
 FROM packages
 WHERE package_updated IS NULL OR crawler_updated > package_updated
 """
 
 _sql_socrata_force_update = r"""
-SELECT crawler_key, domain, metadata_blob, resource_blob, dataset_size
-FROM findopendata.socrata_resources
+SELECT r.key, r.domain, r.metadata_blob, r.resource_blob, r.dataset_size
+FROM findopendata.socrata_resources as r, findopendata.original_hosts as h
+WHERE r.domain = h.original_host AND h.enabled
 """
 
 _sql_socrata = r"""
@@ -50,13 +50,18 @@ WITH updated_times AS (
     FROM findopendata.packages
     WHERE crawler_table = 'socrata_resources'
 ),
+enabled_resources AS (
+    SELECT r.key, r.domain, r.metadata_blob, r.resource_blob, r.dataset_size
+    FROM findopendata.socrata_resources as r, findopendata.original_hosts as h
+    WHERE r.domain = h.original_host AND h.enabled
+),
 resources AS (
     SELECT a.key, a.domain, a.metadata_blob, a.resource_blob,
         a.dataset_size, a.updated as crawler_updated,
         u.updated as package_updated
-    FROM findopendata.socrata_resources as a
+    FROM enabled_resources as a
     LEFT JOIN updated_times as u
-    ON a.key = u.key 
+    ON a.key = u.key
 )
 SELECT key, domain, metadata_blob, resource_blob, dataset_size
 FROM resources
@@ -84,11 +89,9 @@ if __name__ == "__main__":
     for key, package_blob, endpoint, endpoint_name, endpoint_region in \
             ckan_packages:
         index_ckan_package.delay(
-            crawler_package_key=key, 
-            package_blob_name=package_blob, 
+            crawler_package_key=key,
+            package_blob_name=package_blob,
             endpoint=endpoint,
-            endpoint_name=endpoint_name,
-            endpoint_region=endpoint_region,
             bucket_name=gcp_configs["bucket_name"])
     print("Done sending CKAN tasks.")
     ckan_packages.clear()

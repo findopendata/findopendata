@@ -7,6 +7,20 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 /* ============ FINDOPENDATA.COM TABLES ===============
  */
+
+/* The allowed original hosts to be indexed on findopendata.com
+ */
+CREATE TABLE IF NOT EXISTS findopendata.original_hosts (
+    original_host text PRIMARY KEY,
+    display_name text,
+    region text,
+    enabled boolean default false not null
+);
+INSERT INTO findopendata.original_hosts (original_host, display_name, region, enabled) VALUES
+('open.canada.ca/data/en', 'Canadian Open Data', 'Canada', true),
+('data.gov.uk', 'UK Open Data', 'United Kingdoms', true)
+ON CONFLICT DO NOTHING;
+
 /* The metadata table for all data packages used by findopendata.com
  */
 CREATE TABLE IF NOT EXISTS findopendata.packages (
@@ -23,10 +37,6 @@ CREATE TABLE IF NOT EXISTS findopendata.packages (
     id uuid NOT NULL,
     -- The host name of the original publishing platform.
     original_host text,
-    -- The display name of the original publishing platform.
-    original_host_display_name text,
-    -- The geographic region of the original host.
-    original_host_region text,
     -- Number of associated package files
     num_files integer NOT NULL,
     -- The document for supporting full text search.

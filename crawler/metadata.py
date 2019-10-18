@@ -21,8 +21,6 @@ def index_ckan_package(
         crawler_package_key,
         package_blob_name,
         endpoint,
-        endpoint_name,
-        endpoint_region,
         bucket_name):
     """Register the crawled CKAN package into the centralized packages table for
     all types of packages to make it searchable. The following processes are
@@ -72,8 +70,6 @@ def index_ckan_package(
     crawler_table = "ckan_packages"
     crawler_key = crawler_package_key
     original_host = endpoint
-    original_host_display_name = endpoint_name
-    original_host_region = endpoint_region
     num_files = len(resources)
     fts_doc = " ".join(s for s in [title, description] + tags if s is not None)
 
@@ -84,8 +80,6 @@ def index_ckan_package(
                 crawler_key,
                 id,
                 original_host,
-                original_host_display_name,
-                original_host_region,
                 num_files,
                 fts_doc,
                 created,
@@ -110,8 +104,6 @@ def index_ckan_package(
             )
             ON CONFLICT (crawler_table, crawler_key) DO UPDATE SET
             original_host = EXCLUDED.original_host,
-            original_host_display_name = EXCLUDED.original_host_display_name,
-            original_host_region = EXCLUDED.original_host_region,
             num_files = EXCLUDED.num_files,
             fts_doc = EXCLUDED.fts_doc,
             updated = current_timestamp,
@@ -135,8 +127,6 @@ def index_ckan_package(
                 crawler_table,
                 crawler_key,
                 original_host,
-                original_host_display_name,
-                original_host_region,
                 num_files,
                 fts_doc,
                 created,
@@ -307,8 +297,6 @@ def index_socrata_resource(
     # Package fields assigned
     crawler_table = "socrata_resources"
     original_host = domain
-    original_host_display_name = _get_socrata_original_host_display_name(domain)
-    original_host_region = None
     num_files = 1
     fts_doc = " ".join(s for s in [title, description] + tags if s is not None)
 
@@ -324,8 +312,6 @@ def index_socrata_resource(
                 crawler_key,
                 id,
                 original_host,
-                original_host_display_name,
-                original_host_region,
                 num_files,
                 fts_doc,
                 created,
@@ -350,8 +336,6 @@ def index_socrata_resource(
             )
             ON CONFLICT (crawler_table, crawler_key) DO UPDATE SET
             original_host = EXCLUDED.original_host,
-            original_host_display_name = EXCLUDED.original_host_display_name,
-            original_host_region = EXCLUDED.original_host_region,
             num_files = EXCLUDED.num_files,
             fts_doc = EXCLUDED.fts_doc,
             updated = current_timestamp,
@@ -375,8 +359,6 @@ def index_socrata_resource(
                 crawler_table,
                 crawler_key,
                 original_host,
-                original_host_display_name,
-                original_host_region,
                 num_files,
                 fts_doc,
                 created,
@@ -446,16 +428,3 @@ def index_socrata_resource(
     conn.commit()
     conn.close()
     logger.info("Indexed Socrata resource {}".format(crawler_key))
-
-
-# Cached original host display names
-_socrata_original_host_display_names = dict()
-
-def _get_socrata_original_host_display_name(domain):
-    if domain not in _socrata_original_host_display_names:
-        resp = requests.get("https://"+domain)
-        resp.raise_for_status()
-        name = BeautifulSoup(resp.text, "html.parser").title.string
-        _socrata_original_host_display_names[domain] = name
-    return _socrata_original_host_display_names[domain]
-
