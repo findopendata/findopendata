@@ -99,7 +99,7 @@ def index_ckan_package(
                 raw_metadata
             )
             VALUES (
-                %s, %s, uuid_generate_v1mc(), %s, %s, %s, %s, to_tsvector(%s),
+                %s, %s, uuid_generate_v1mc(), %s, %s, to_tsvector(%s),
                 %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
             )
             ON CONFLICT (crawler_table, crawler_key) DO UPDATE SET
@@ -331,7 +331,7 @@ def index_socrata_resource(
                 raw_metadata
             )
             VALUES (
-                %s, %s, uuid_generate_v1mc(), %s, %s, %s, %s, to_tsvector(%s),
+                %s, %s, uuid_generate_v1mc(), %s, %s, to_tsvector(%s),
                 %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
             )
             ON CONFLICT (crawler_table, crawler_key) DO UPDATE SET
