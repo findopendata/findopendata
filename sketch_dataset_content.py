@@ -15,10 +15,17 @@ WITH updated_times AS (
     SELECT package_file_key as key, max(updated) as updated
     FROM findopendata.column_sketches
     GROUP BY package_file_key
+),
+package_files AS (
+    SELECT f.key, f.blob_name, f.format, f.updated as file_updated,
+        u.updated as sketch_updated
+    FROM findopendata.package_files as f
+    LEFT JOIN updated_times as u
+    ON f.key = u.key
 )
-SELECT f.key, f.blob_name, f.format
-FROM findopendata.package_files as f, updated_times as u
-WHERE f.key = u.key AND f.updated > u.updated
+SELECT key, blob_name, format
+FROM package_files
+WHERE file_updated > sketch_updated AND blob_name IS NOT NULL
 """
 
 
@@ -47,14 +54,14 @@ if __name__ == "__main__":
     print("Sending {} tasks to workers.".format(len(package_files)))
     for package_file in package_files:
         fmt = package_file["format"].strip().lower()
-        sketch_package_file.delay(package_file_key=package_file["key"], 
+        sketch_package_file.delay(package_file_key=package_file["key"],
                 bucket_name=gcp_configs["bucket_name"],
-                blob_name=package_file["blob_name"], 
+                blob_name=package_file["blob_name"],
                 dataset_format=fmt,
                 max_records=index_configs["max_records_per_dataset"],
                 table_sample_size=index_configs["table_sample_size"],
-                minhash_size=index_configs["minhash_size"], 
-                minhash_seed=index_configs["minhash_seed"], 
+                minhash_size=index_configs["minhash_size"],
+                minhash_seed=index_configs["minhash_seed"],
                 hyperloglog_p=index_configs["hyperloglog_p"],
                 column_sample_size=index_configs["column_sample_size"],
                 enable_word_vector_data=index_configs["enable_word_vector_data"])
