@@ -12,6 +12,20 @@ function FetchOriginalHosts(callBack) {
   });
 }
 
+function FetchKeywordSearchTitleResults(query, selectedOriginalHosts, callBack) {
+  var url_queries = [`query=${query}`,];
+  if (selectedOriginalHosts.length > 0) {
+    url_queries = url_queries.concat(selectedOriginalHosts.map(h => `original_host=${h}`));
+  }
+  fetch(`${API_ENDPOINT}/keyword-search-title?${url_queries.join('&')}`)
+  .then(handleErrors)
+  .then(res => res.json()).then((res) => {
+    callBack(res);
+  }).catch(err => {
+    console.log(err);
+  });
+}
+
 function FetchKeywordSearchResults(query, selectedOriginalHosts, callBack) {
   var url_queries = [`query=${query}`,];
   if (selectedOriginalHosts.length > 0) {
@@ -94,6 +108,7 @@ function FetchJoinableColumns(columnId, selectedOriginalHosts, callBackSuccess, 
 export {
   FetchOriginalHosts,
   FetchKeywordSearchResults, 
+  FetchKeywordSearchTitleResults, 
   FetchSimilarPackageSearchResults,
   FetchPackage,
   FetchPackageFile,

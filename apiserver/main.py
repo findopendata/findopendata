@@ -115,6 +115,27 @@ def _execute_get_package_detailed(cur, package_id=None, package_key=None):
     cur.execute(sql, args)
 
 
+def _execute_keyword_search_title(cur, query, original_hosts=[], limit=10):
+    sql = r"""SELECT
+                id,
+                title,
+                organization_display_name,
+                num_files
+            FROM 
+                findopendata.packages,
+                plainto_tsquery('english', %s) query
+            WHERE query @@ to_tsvector('english', title)
+                AND num_files > 0
+        """
+    if original_hosts:
+        sql += r" AND p.original_host in %s "
+    sql += r" ORDER BY ts_rank_cd(to_tsvector('english', title), query) DESC LIMIT %s;"
+    if original_hosts:
+        cur.execute(sql, (query, original_hosts, limit))
+    else:
+        cur.execute(sql, (query, limit))
+
+
 def _execute_keyword_search(cur, query, original_hosts=[], limit=50):
     sql = r"""SELECT
                 id,
@@ -247,6 +268,20 @@ cnxpool.putconn(cnx)
 @app.route('/api/original-hosts', methods=['GET'])
 def original_hosts():
     return jsonify(_original_hosts)
+
+
+@app.route('/api/keyword-search-title', methods=['GET'])
+def keyword_search_title():
+    query = request.args.get('query', '')
+    if query == '':
+        return jsonify([])
+    original_host_filter = tuple(request.args.getlist('original_host'))
+    cnx = cnxpool.getconn()
+    with cnx.cursor(cursor_factory=RealDictCursor) as cursor:
+        _execute_keyword_search_title(cursor, query, original_host_filter)
+        results = cursor.fetchall()
+    cnxpool.putconn(cnx)
+    return jsonify(results)
 
 
 @app.route('/api/keyword-search', methods=['GET'])

@@ -5,6 +5,8 @@ import {
 import FilterBar from './FilterBar.js';
 import PackageCardColumn from './PackageCardColumn.js';
 import PackageDetail from './PackageDetail.js';
+import {isMobile} from 'react-device-detect';
+import { withRouter } from "react-router-dom";
 
 class PackageSearchResults extends React.Component {
   constructor(props) {
@@ -14,7 +16,11 @@ class PackageSearchResults extends React.Component {
     };
   }
   handleSelectPackageCard(pacId) {
-    this.setState({ selectedPacId : pacId });
+    if (isMobile) {
+      this.props.history.push('/package/'+pacId);
+    } else {
+      this.setState({ selectedPacId : pacId });
+    }
   }
   render() {
     const hosts = this.props.originalHosts.map(h => {
@@ -70,4 +76,4 @@ class PackageSearchResults extends React.Component {
   }
 }
 
-export default PackageSearchResults;
+export default withRouter(PackageSearchResults);

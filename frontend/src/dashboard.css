@@ -174,3 +174,22 @@ th.column-search:hover {
   border-color: transparent;
   box-shadow: 0 0 0 3px rgba(255, 255, 255, .25);
 }
+
+.suggestions-container {
+  display: block;
+  width: 100%;
+  padding: 0;
+  position: absolute;
+  border: 1px solid #ced4da;
+  left: 0;
+}
+
+.suggestions-container ul {
+  padding: 0;
+  list-style-type: none;
+}
+
+.suggestions-container ul li:hover {
+  cursor: pointer;
+  width: 100%;
+}
