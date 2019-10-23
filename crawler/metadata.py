@@ -383,7 +383,7 @@ def index_socrata_resource(
     created = metadata["resource"].get("createdAt")
     modified = metadata["resource"].get("data_updated_at")
     original_url = metadata["link"]
-    file_format = 'avro'
+    file_format = 'AVRO'
     file_size = dataset_size
     blob_name = resource_blob_name
     raw_metadata = metadata["resource"]

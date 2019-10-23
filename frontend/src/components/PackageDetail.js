@@ -1,16 +1,18 @@
 import React from 'react';
 import {
-  ButtonToolbar, ButtonGroup, Button, Badge, CardColumns, Card,
+  ButtonToolbar, ButtonGroup, Button, Badge, Card, Nav, NavDropdown
 } from 'react-bootstrap';
 import { Link } from "react-router-dom";
 import { FetchPackage } from '../tools/RemoteData';
 import { LoadingSpinner } from './LoadingSpinner';
+import DataTable from './DataTable';
 
 class PackageDetail extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
       pac: { tags: [] },
+      format_filter: null,
       files: [],
       loading: false,
     };
@@ -24,6 +26,7 @@ class PackageDetail extends React.Component {
       this.setState({
         pac: res['package'],
         files: res['package_files'],
+        format_filter: null,
         loading: false,
       });
       this.props.onLoad(this.state.pac);
@@ -41,7 +44,10 @@ class PackageDetail extends React.Component {
   }
   render() {
     const pac = this.state.pac;
-    const files = this.state.files.sort((f1, f2) => {
+    const formats = Array.from(new Set(this.state.files.map(f => f.format)));
+    const format_filter = this.state.format_filter
+    const files = this.state.files
+      .filter(f => format_filter === null || f.format === format_filter).sort((f1, f2) => {
       if (f1.filename < f2.filename) {
         return -1;
       }
@@ -86,10 +92,24 @@ class PackageDetail extends React.Component {
         <h3>License</h3>
         <p><a href={pac.license_url}>{pac.license_title}</a></p>
         <h3>Files</h3>
-        <CardColumns>
+        <Nav variant="tabs" className="mb-4" 
+          onSelect={(eventKey) => {this.setState({format_filter : eventKey})}}>
+          <NavDropdown title={`Filter by Format ${format_filter ? format_filter : ' '}`}>
+            <NavDropdown.Item key={null} onClick={()=>this.setState({format_filter: null})}>Clear Filter</NavDropdown.Item>
+            <NavDropdown.Divider />
+            {
+              formats.map(f => 
+                <NavDropdown.Item key={f} eventKey={f}>
+                  {f}
+                </NavDropdown.Item>
+              )
+            }
+          </NavDropdown>
+        </Nav>
+        <div>
           {
             files.map((f) => 
-              <Card key={f.id}>
+              <Card key={f.id} className="mb-4">
                 <Card.Header>{f.format}</Card.Header>
                 <Card.Body>
                   <Card.Title>{f.name}</Card.Title>
@@ -100,6 +120,9 @@ class PackageDetail extends React.Component {
                   {f.filename}
                   </Card.Text>
                   {
+                    f.available ? <DataTable columns={f.columns} records={f.sample} maxRecords={3} /> : ''
+                  }
+                  {
                    f.available ? <Link className="btn btn-primary btn-sm m-2" to={`/package-file/${f.id}`}>Preview</Link> : ''
                   }
                   <a className="btn btn-info btn-sm m-2" href={f.original_url}>Download</a>
@@ -107,7 +130,7 @@ class PackageDetail extends React.Component {
               </Card>
             )
           }
-        </CardColumns>
+        </div>
       </div>
     );
   }

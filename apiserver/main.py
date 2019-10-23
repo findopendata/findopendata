@@ -296,11 +296,25 @@ def package(package_id):
                     description,
                     original_url,
                     format,
+                    sample,
+                    column_names,
+                    column_sketch_ids,
                     sample IS NOT NULL as available
                 FROM findopendata.package_files
                 WHERE package_key = %s""", (package["key"],))
         package_files = cursor.fetchall()
     cnxpool.putconn(cnx)
+    for package_file in package_files:
+        if package_file["column_names"] and package_file["column_sketch_ids"]:
+            # Merge column ids and names
+            package_file["columns"] = [{"column_name": name, "id": sketch_id}
+                    for name, sketch_id in
+                    zip(package_file["column_names"],
+                    package_file["column_sketch_ids"])]
+        else:
+            package_file["columns"] = None
+        package_file.pop("column_names")
+        package_file.pop("column_sketch_ids")
     # Remove key from output
     package.pop("key")
     return jsonify(package=package, package_files=package_files)

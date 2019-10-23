@@ -1,11 +1,11 @@
 import React from 'react';
 import {
-  Table, ButtonToolbar, ButtonGroup, Button, Modal, OverlayTrigger, Tooltip,
+  ButtonToolbar, ButtonGroup, Button
 } from 'react-bootstrap';
 import { Link } from "react-router-dom";
 import { FetchPackageFile } from '../tools/RemoteData';
-import JoinableColumnSearchResult from './JoinableColumnSearchResult';
 import { LoadingSpinner } from './LoadingSpinner';
+import DataTable from './DataTable';
 
 
 class PackageFile extends React.Component {
@@ -15,15 +15,7 @@ class PackageFile extends React.Component {
       pac: {},
       file: {},
       loading: false,
-      showingColumnSearchResult: false,
-      queryColumn: {},
     };
-  }
-  handleCloseColumnSearchResult() {
-    this.setState({queryColumn: {}, showingColumnSearchResult: false});
-  }
-  handleOpenColumnSearchResult(queryColumn) {
-    this.setState({queryColumn: queryColumn, showingColumnSearchResult: true});
   }
   fetchPackageFile(id) {
     this.setState({loading: true});
@@ -51,8 +43,7 @@ class PackageFile extends React.Component {
   render() {
     const file = this.state.file;
     const pac = this.state.pac;
-    const columns = file.columns ? file.columns : [];
-    const records = file.sample ? file.sample : [];
+    const sampleLength = file.sample ? file.sample.length : 0;
     return (
       <div>
         <div className="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
@@ -78,74 +69,8 @@ class PackageFile extends React.Component {
         <LoadingSpinner loading={this.state.loading} />
         <p>{file.description}</p>
         <p>Go to package: <Link to={`/package/${pac.id}`}>{pac.title}</Link>.</p>
-        <p>Showing only the first {records.length} rows, <a href={file.original_url}>download the file</a>.</p>
-        <Table responsive striped bordered hover>
-          <thead>
-            <tr>
-              { 
-                columns.map(h => 
-                  h.id ? (
-                    <OverlayTrigger
-                      key={`column-overlay:${h.column_name}`}
-                      placement="bottom"
-                      overlay={
-                        <Tooltip>
-                          Click me to find joinable tables on this column.
-                        </Tooltip>
-                      }
-                    >
-                      <th key={`column:${h.column_name}`} 
-                        onClick={() => this.handleOpenColumnSearchResult(h)}
-                        className="column-search"
-                      >
-                        {h.column_name}
-                      </th>
-                    </OverlayTrigger>
-                  ) : (
-                      <th key={`column:${h.column_name}`} 
-                        className="column-no-search"
-                      >
-                        {h.column_name}
-                      </th>
-                  )
-                ) 
-              }
-            </tr>
-          </thead>
-          <tbody>
-            {
-              records.map((record, i) => (
-                <tr key={`row:${i}`}>
-                  {
-                    columns.map(c => c.column_name).map((key, j) => (
-                      <td key={`cell:${i}:${j}`}>
-                        { 
-                          record[key] ? (
-                            typeof(record[key]) === "object" ? 
-                              JSON.stringify(record[key]) : record[key]
-                          ) : ''
-                        }
-                      </td>
-                    ))
-                  }
-                </tr>
-              ))
-            }
-          </tbody>
-        </Table>
-        <Modal size="lg" aria-labelledby="contained-modal-title-vcenter"
-          centered 
-          show={this.state.showingColumnSearchResult}
-          onHide={() => this.handleCloseColumnSearchResult()}
-          >
-          <Modal.Body>
-            <JoinableColumnSearchResult 
-              columnId={this.state.queryColumn.id}
-              columnName={this.state.queryColumn.column_name}
-              onClickResult={this.handleCloseColumnSearchResult.bind(this)}
-            />
-          </Modal.Body>
-        </Modal>
+        <p>Showing only the first {sampleLength} rows, <a href={file.original_url}>download the file</a>.</p>
+        <DataTable columns={file.columns} records={file.sample} />
       </div>
     );
   }
