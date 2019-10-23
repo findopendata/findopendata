@@ -17,7 +17,7 @@ class KeywordSearchForm extends React.Component {
     this.onSuggestionsFetchRequestedDebounced = debounce(500, this.onSuggestionsFetchRequested);
   }
   getSuggestionValue(suggestion) {
-    return suggestion.title;
+    return this.state.value;
   }
   renderSuggestion(suggestion) {
     const tokens = this.state.value.split(' ');
