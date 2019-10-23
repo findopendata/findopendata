@@ -25,7 +25,8 @@ package_files AS (
 )
 SELECT key, blob_name, format
 FROM package_files
-WHERE file_updated > sketch_updated AND blob_name IS NOT NULL
+WHERE (sketch_updated IS NULL OR file_updated > sketch_updated)
+    AND blob_name IS NOT NULL
 """
 
 

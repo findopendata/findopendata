@@ -383,6 +383,7 @@ def index_socrata_resource(
     created = metadata["resource"].get("createdAt")
     modified = metadata["resource"].get("data_updated_at")
     original_url = metadata["link"]
+    file_format = 'avro'
     file_size = dataset_size
     blob_name = resource_blob_name
     raw_metadata = metadata["resource"]
@@ -397,17 +398,19 @@ def index_socrata_resource(
                 created,
                 modified,
                 original_url,
+                format,
                 file_size,
                 blob_name,
                 raw_metadata
             ) VALUES
             (%s, %s, %s, uuid_generate_v1mc(), %s,
-            %s, %s, %s, %s, %s)
+            %s, %s, %s, %s, %s, %s)
             ON CONFLICT (crawler_table, crawler_key) DO UPDATE SET
             updated = current_timestamp,
             created = EXCLUDED.created,
             modified = EXCLUDED.modified,
             original_url = EXCLUDED.original_url,
+            format = EXCLUDED.format,
             file_size = EXCLUDED.file_size,
             blob_name = EXCLUDED.blob_name,
             raw_metadata = EXCLUDED.raw_metadata
@@ -419,6 +422,7 @@ def index_socrata_resource(
                 created,
                 modified,
                 original_url,
+                file_format,
                 file_size,
                 blob_name,
                 Json(raw_metadata)
