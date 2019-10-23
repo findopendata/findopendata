@@ -22,12 +22,12 @@ WITH updated_times AS (
     WHERE crawler_table = 'ckan_packages'
 ),
 enabled_packages AS (
-    SELECT p.key, p.package_blob, p.endpoint
+    SELECT p.key, p.package_blob, p.endpoint, p.updated
     FROM findopendata.original_hosts as h, findopendata.ckan_packages as p
     WHERE p.endpoint = h.original_host and h.enabled
 ),
 packages AS (
-    SELECT a.key, a.package_blob, a.endpoint, a.updated as crawler_updated, 
+    SELECT a.key, a.package_blob, a.endpoint, a.updated as crawler_updated,
         u.updated as package_updated
     FROM enabled_packages AS a
     LEFT JOIN updated_times AS u
@@ -51,7 +51,8 @@ WITH updated_times AS (
     WHERE crawler_table = 'socrata_resources'
 ),
 enabled_resources AS (
-    SELECT r.key, r.domain, r.metadata_blob, r.resource_blob, r.dataset_size
+    SELECT r.key, r.domain, r.metadata_blob, r.resource_blob, r.dataset_size,
+        r.updated
     FROM findopendata.socrata_resources as r, findopendata.original_hosts as h
     WHERE r.domain = h.original_host AND h.enabled
 ),
@@ -86,8 +87,7 @@ if __name__ == "__main__":
     cur.close()
     conn.close()
     print("Sending {} CKAN tasks to workers...".format(len(ckan_packages)))
-    for key, package_blob, endpoint, endpoint_name, endpoint_region in \
-            ckan_packages:
+    for key, package_blob, endpoint in ckan_packages:
         index_ckan_package.delay(
             crawler_package_key=key,
             package_blob_name=package_blob,
