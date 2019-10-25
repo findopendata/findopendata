@@ -9,7 +9,6 @@ import simplejson as json
 import fastavro
 
 from .settings import gcp_configs
-from .util import get_mime_buffer
 from .gzip import Bytes2GzipStreamReader
 
 
@@ -69,9 +68,6 @@ def save_file(fileobj, bucket_name, blob_name,
     blob = gcs_client.bucket(bucket_name).blob(blob_name, chunk_size=chunk_size)
     # Check the content type (i.e. mime type) and content encoding
     head = fileobj.read(guess_content_bytes)
-    mimetype, encoding = get_mime_buffer(head)
-    blob.content_type = mimetype
-    blob.content_encoding = encoding
     fileobj.seek(0)
     # Wrapp with gzip if set
     if gzip:

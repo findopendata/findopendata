@@ -1,26 +1,9 @@
 import os
 import shutil
-import re
 import uuid
-import cgi
 
-import magic
-import cchardet as chardet
 from django.utils.text import get_valid_filename
 from contextlib import contextmanager
-
-
-content_type_re = re.compile(r"^[^/]+/[^/]+$")
-
-
-magic_encoding = magic.Magic(mime_encoding=True)
-
-
-magic_parser = magic.Magic(mime=True, mime_encoding=True)
-
-
-magic_parser_uncompress = magic.Magic(mime=True, mime_encoding=True,
-        uncompress=True)
 
 
 def get_safe_filename(s, default_filename="unnamed_file"):
@@ -55,45 +38,3 @@ def temporary_directory(parent_dir):
         yield dir_name
     finally:
         shutil.rmtree(dir_name)
-
-
-def get_mime(filename, guess_encoding_bytes=8192, uncompress=False):
-    """Get the Mimetype from a file, and optionally handles compressed
-    file by setting uncompress=True.
-    """
-    parser = magic_parser
-    if uncompress:
-        parser = magic_parser_uncompress
-    mimetype, params = cgi.parse_header(parser.from_file(filename))
-    encoding = params["charset"]
-    if encoding.startswith("unknown") and not uncompress:
-        with open(filename, "rb") as f:
-            result = chardet.detect(f.read(guess_encoding_bytes))
-        encoding = result["encoding"]
-    return mimetype, encoding
-
-
-def get_mime_buffer(buf, uncompress=False):
-    """Get the Mimetype from buffer, and optionally handles compressed
-    file by setting uncompress=True.
-    """
-    parser = magic_parser
-    if uncompress:
-        parser = magic_parser_uncompress
-    mimetype, params = cgi.parse_header(parser.from_buffer(buf))
-    encoding = params["charset"]
-    if encoding.startswith("unknown") and not uncompress:
-        result = chardet.detect(buf)
-        encoding = result["encoding"]
-    return mimetype, encoding
-
-
-def guess_encoding_from_buffer(buf, chardet_threshold=0.5):
-    result = chardet.detect(buf)
-    if result["confidence"] < chardet_threshold:
-        # Try magic
-        encoding = magic_encoding.from_buffer(buf)
-        if not encoding.startswith("unknown"):
-            return encoding
-    return result["encoding"]
-

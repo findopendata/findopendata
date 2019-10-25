@@ -89,6 +89,17 @@ virtualenv -p python3 pyenv
 pip install -r requirements.txt
 ```
 
+`python-snappy` requires `libsnappy`. On Ubuntu you can 
+simply install it by `sudo apt-get install libsnappy-dev`.
+On Mac OS X use `brew install snappy`.
+On Windows, instead of the `python-snappy` binary on Pypi, use the 
+unofficial binary maintained by UC Irvine 
+([download here](https://www.lfd.uci.edu/~gohlke/pythonlibs/)),
+and install directly, for example (Python 3.7, amd64):
+```
+pip install python_snappy‑0.5.4‑cp37‑cp37m‑win_amd64.whl
+```
+
 #### 4. Configuration File
 
 Create a `configs.yaml` by copying `configs-example.yaml`, complete all fields.
@@ -174,3 +185,7 @@ samples, data types, etc.) of dataset
 content (i.e., data values, columns, and records).
 The sketches will be used for content-based search such as
 finding joinable tables.
+
+## Windows-Specific Issues
+
+### Python Dependencies

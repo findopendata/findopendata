@@ -3,6 +3,7 @@ CREATE SCHEMA IF NOT EXISTS findopendata;
 /* Create extensions used.
  */
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 
 
 /* ============ FINDOPENDATA.COM TABLES ===============
@@ -39,8 +40,6 @@ CREATE TABLE IF NOT EXISTS findopendata.packages (
     original_host text,
     -- Number of associated package files
     num_files integer NOT NULL,
-    -- The document for supporting full text search.
-    fts_doc tsvector NOT NULL,
     -- The added time of this data package to the metadata table.
     added timestamp default current_timestamp,
     -- The last updated time of this data pacakge in the metadata table.
@@ -80,7 +79,7 @@ CREATE TABLE IF NOT EXISTS findopendata.packages (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS package_crawler_idx ON findopendata.packages(crawler_table, crawler_key);
 CREATE UNIQUE INDEX IF NOT EXISTS packages_idx ON findopendata.packages (id);
-CREATE INDEX IF NOT EXISTS packages_fts_idx ON findopendata.packages USING gin (fts_doc);
+CREATE INDEX IF NOT EXISTS packages_fts_idx ON findopendata.packages USING gin (to_tsvector('english', title || description));
 CREATE INDEX IF NOT EXISTS packages_fts_title_idx ON findopendata.packages USING gin (to_tsvector('english', title));
 CREATE INDEX IF NOT EXISTS packages_title_trgm_idx ON findopendata.packages USING GIN (title gin_trgm_ops);
 

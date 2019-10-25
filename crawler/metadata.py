@@ -71,7 +71,6 @@ def index_ckan_package(
     crawler_key = crawler_package_key
     original_host = endpoint
     num_files = len(resources)
-    fts_doc = " ".join(s for s in [title, description] + tags if s is not None)
 
     # Save package
     cur.execute(r"""INSERT INTO findopendata.packages
@@ -81,7 +80,6 @@ def index_ckan_package(
                 id,
                 original_host,
                 num_files,
-                fts_doc,
                 created,
                 modified,
                 title,
@@ -99,13 +97,12 @@ def index_ckan_package(
                 raw_metadata
             )
             VALUES (
-                %s, %s, uuid_generate_v1mc(), %s, %s, to_tsvector(%s),
+                %s, %s, uuid_generate_v1mc(), %s, %s,
                 %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
             )
             ON CONFLICT (crawler_table, crawler_key) DO UPDATE SET
             original_host = EXCLUDED.original_host,
             num_files = EXCLUDED.num_files,
-            fts_doc = EXCLUDED.fts_doc,
             updated = current_timestamp,
             created = EXCLUDED.created,
             modified = EXCLUDED.modified,
@@ -128,7 +125,6 @@ def index_ckan_package(
                 crawler_key,
                 original_host,
                 num_files,
-                fts_doc,
                 created,
                 modified,
                 title,
@@ -298,7 +294,6 @@ def index_socrata_resource(
     crawler_table = "socrata_resources"
     original_host = domain
     num_files = 1
-    fts_doc = " ".join(s for s in [title, description] + tags if s is not None)
 
     # Get connection.
     conn = psycopg2.connect(**db_configs)
@@ -313,7 +308,6 @@ def index_socrata_resource(
                 id,
                 original_host,
                 num_files,
-                fts_doc,
                 created,
                 modified,
                 title,
@@ -331,13 +325,12 @@ def index_socrata_resource(
                 raw_metadata
             )
             VALUES (
-                %s, %s, uuid_generate_v1mc(), %s, %s, to_tsvector(%s),
+                %s, %s, uuid_generate_v1mc(), %s, %s,
                 %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
             )
             ON CONFLICT (crawler_table, crawler_key) DO UPDATE SET
             original_host = EXCLUDED.original_host,
             num_files = EXCLUDED.num_files,
-            fts_doc = EXCLUDED.fts_doc,
             updated = current_timestamp,
             created = EXCLUDED.created,
             modified = EXCLUDED.modified,
@@ -360,7 +353,6 @@ def index_socrata_resource(
                 crawler_key,
                 original_host,
                 num_files,
-                fts_doc,
                 created,
                 modified,
                 title,

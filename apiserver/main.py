@@ -124,7 +124,8 @@ def _execute_keyword_search_title(cur, query, original_hosts=[], limit=10):
             FROM 
                 findopendata.packages,
                 plainto_tsquery('english', %s) query
-            WHERE query @@ to_tsvector('english', title)
+            WHERE 
+                query @@ to_tsvector('english', title)
                 AND num_files > 0
         """
     if original_hosts:
@@ -154,13 +155,15 @@ def _execute_keyword_search(cur, query, original_hosts=[], limit=50):
             FROM 
                 findopendata.packages as p, 
                 findopendata.original_hosts as h,
-                plainto_tsquery(%s) query
-            WHERE query @@ fts_doc
+                plainto_tsquery('english', %s) query
+            WHERE 
+                query @@ to_tsvector('english', title || description)
                 AND p.original_host = h.original_host
+                AND num_files > 0
         """
     if original_hosts:
         sql += r" AND p.original_host in %s "
-    sql += r" ORDER BY ts_rank_cd(fts_doc, query) DESC LIMIT %s;"
+    sql += r" ORDER BY ts_rank_cd(to_tsvector('english', title || description), query) DESC LIMIT %s;"
     if original_hosts:
         cur.execute(sql, (query, original_hosts, limit))
     else:

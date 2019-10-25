@@ -1,10 +1,11 @@
+import os
 import magic
 import cchardet as chardet
 
 
-magic_encoding = magic.Magic(mime_encoding=True)
-
-magic_parser = magic.Magic(mime=True, mime_encoding=True)
+magic_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+        "magic.mgc")
+magic_encoding = magic.Magic(mime_encoding=True, magic_file=magic_file)
 
 
 def guess_encoding_from_buffer(buf, chardet_threshold=0.5):
@@ -16,4 +17,3 @@ def guess_encoding_from_buffer(buf, chardet_threshold=0.5):
         if not encoding.startswith("unknown"):
             return encoding
     return result["encoding"]
-

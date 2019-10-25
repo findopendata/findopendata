@@ -16,8 +16,7 @@ ON CONFLICT DO NOTHING;
 /* The collection of Socrata App Tokens.
  */
 CREATE TABLE IF NOT EXISTS findopendata.socrata_app_tokens (
-    key serial PRIMARY KEY,
-    token text NOT NULL,
+    token text PRIMARY KEY,
     added timestamp default current_timestamp
 );
 CREATE UNIQUE INDEX IF NOT EXISTS socrata_app_tokens_idx ON findopendata.socrata_app_tokens (token);
@@ -55,7 +54,7 @@ CREATE TABLE IF NOT EXISTS findopendata.ckan_apis (
     region text NOT NULL,
     enabled boolean NOT NULL default false
 );
-CREATE UNIQUE INDEX IF NOT EXISTS ckan_apis_idx ON findopendata.ckan_apis (url);
+CREATE UNIQUE INDEX IF NOT EXISTS ckan_apis_idx ON findopendata.ckan_apis (scheme, endpoint);
 INSERT INTO findopendata.ckan_apis (endpoint, name, region, enabled) VALUES
 ('data.gov.uk', 'UK Open Data', 'United Kingdoms', true),
 ('open.canada.ca/data/en', 'Canadian Open Data', 'Canada', true)
