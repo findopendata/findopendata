@@ -156,6 +156,12 @@ For example:
 celery -A crawler worker -l info -Ofair
 ```
 
+On Windows there are some issues with using prefork process pool.
+Use `gevent` instead:
+```
+celery -A crawler worker -l info -Ofair -P gevent
+```
+
 #### Harvest Datasets
 
 Run `harvest_datasets.py` to start data harvesting tasks that download 

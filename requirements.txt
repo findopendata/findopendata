@@ -17,6 +17,7 @@ spacy>=2.1.8
 beautifulsoup4>=4.8.0
 pyyaml>=5.1.2
 nose2>=0.9.1
+gevent>=1.4.0
 
 # RFC6266 custom package
 https://github.com/ekzhu/rfc6266/archive/0.0.6.op1.tar.gz
