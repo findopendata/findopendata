@@ -5,7 +5,6 @@ gcsfs>=0.3.0
 celery>=4.3.0
 psycopg2-binary>=2.7.5
 Django>=2.2.3
-python-magic>=0.4.15
 simplejson>=3.16.0
 genson>=1.1.0
 fastavro>=0.22.3
