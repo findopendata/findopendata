@@ -26,11 +26,9 @@ var (
 func indexing(db *sql.DB) (lsh *minhashlsh.MinhashLSH, minhashSize, minhashSeed int) {
 	sqlPredicates := `count != empty_count
 					AND (
-						distinct_count >= 50
-						OR (
-							distinct_count >= 10
-							AND distinct_count::float / (count - empty_count)::float >= 0.9
-						)
+						distinct_count >= 10
+						AND 
+						distinct_count::float / (count - empty_count)::float >= 0.9
 					)`
 	log.Print("Counting indexable column sketches...")
 	var count int

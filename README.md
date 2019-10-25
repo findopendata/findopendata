@@ -186,6 +186,3 @@ content (i.e., data values, columns, and records).
 The sketches will be used for content-based search such as
 finding joinable tables.
 
-## Windows-Specific Issues
-
-### Python Dependencies
