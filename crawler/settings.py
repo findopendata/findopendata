@@ -15,11 +15,17 @@ configs = from_yaml(os.path.join(
     "configs.yaml"
 ))
 
-# Crawler configurations.
-crawler_configs = configs.get("crawler")
+# Storage configurations.
+storage_configs = configs.get("storage")
+
+# Local storage configurations.
+local_configs = configs.get("local")
 
 # GCP configurations.
 gcp_configs = configs.get("gcp")
+
+# Crawler configurations.
+crawler_configs = configs.get("crawler")
 
 # Postgres configurations.
 db_configs = configs.get("postgres")

@@ -5,7 +5,7 @@ import collections
 
 import psycopg2
 
-from crawler.settings import db_configs, gcp_configs
+from crawler.settings import db_configs
 from crawler.metadata import index_ckan_package, index_socrata_resource
 
 
@@ -91,8 +91,7 @@ if __name__ == "__main__":
         index_ckan_package.delay(
             crawler_package_key=key,
             package_blob_name=package_blob,
-            endpoint=endpoint,
-            bucket_name=gcp_configs["bucket_name"])
+            endpoint=endpoint)
     print("Done sending CKAN tasks.")
     ckan_packages.clear()
 
@@ -114,7 +113,6 @@ if __name__ == "__main__":
             domain=domain,
             metadata_blob_name=metadata_blob,
             resource_blob_name=resource_blob,
-            dataset_size=dataset_size,
-            bucket_name=gcp_configs["bucket_name"])
+            dataset_size=dataset_size)
     print("Done sending Socrata tasks.")
     socrata_resources.clear()

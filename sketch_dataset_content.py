@@ -6,7 +6,7 @@ import collections
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-from crawler.settings import db_configs, gcp_configs, index_configs
+from crawler.settings import db_configs, index_configs
 from crawler.indexing import sketch_package_file
 
 
@@ -56,7 +56,6 @@ if __name__ == "__main__":
     for package_file in package_files:
         fmt = package_file["format"].strip().lower()
         sketch_package_file.delay(package_file_key=package_file["key"],
-                bucket_name=gcp_configs["bucket_name"],
                 blob_name=package_file["blob_name"],
                 dataset_format=fmt,
                 max_records=index_configs["max_records_per_dataset"],

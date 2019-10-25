@@ -7,7 +7,7 @@ import psycopg2
 from celery.utils.log import get_task_logger
 
 from .celery import app
-from .storage import save_avro_records, save_object
+from .storage import storage
 from .parsers.avro import JSON2AvroRecords
 from .settings import crawler_configs, db_configs, gcp_configs
 from .socrata import socrata_records
@@ -18,17 +18,15 @@ logger = get_task_logger(__name__)
 
 
 @app.task(ignore_result=True)
-def add_socrata_resource(metadata, app_token, bucket_name, blob_prefix,
-        force_update):
+def add_socrata_resource(metadata, app_token, blob_prefix, force_update):
     """Retrieves and adds a Socrata resource to the registry.
 
     Args:
         metadata: the 'resource' section of the JSON data returned from
             the Socrata Discovery API.
         app_token: the application token for using the discovery API.
-        bucket_name: the name of the cloud storage bucket to upload to.
         blob_prefix: the prefix for all the blobs uploaded from this
-            function, relative to the root of the bucket.
+            function, relative to the root.
         force_update: whether to force update regardless of the updated time.
     """
 
@@ -65,7 +63,7 @@ def add_socrata_resource(metadata, app_token, bucket_name, blob_prefix,
         conn.close()
 
     # Upload the metadata.
-    metadata_blob = save_object(metadata, bucket_name,
+    metadata_blob = storage.put_object(metadata, 
             "/".join([blob_prefix, domain, uid, "metadata.json"]))
     logger.info("(domain={} id={}) Saved metadata.".format(domain, uid))
 
@@ -79,9 +77,8 @@ def add_socrata_resource(metadata, app_token, bucket_name, blob_prefix,
     try:
         records = JSON2AvroRecords(socrata_records(original_url, app_token),
                 field_names=field_names)
-        resource_blob = save_avro_records(records.schema, records.get(),
-                bucket_name, resource_blob_name,
-                codec="snappy")
+        resource_blob = storage.put_avro(records.schema, records.get(),
+                resource_blob_name, codec="snappy")
     except Exception as e:
         logger.warning("(domain={} id={}) Failed to save resource from {}: {}".\
                 format(domain, id, original_url, e))
@@ -137,24 +134,22 @@ def _extract_socrata_uid2(metadata):
 
 
 @app.task(ignore_result=True)
-def add_socrata_resources_from_api(discovery_api_url, bucket_name, blob_prefix,
+def add_socrata_resources_from_api(discovery_api_url, blob_prefix,
         force_update):
     """Scrolls through the Socrata Discovery API and starts tasks to retrieves
     resources.
 
     Args:
         discovery_api_url: the full URL of the Discovery API endpoint.
-        bucket_name: the name of the cloud storage bucket to upload all blobs.
         blob_prefix: the prefix for all the blobs uploaded from this
-            function, relative to the root of the bucket.
+            function, relative to the root.
     """
     logger.info("(discovery_api_url=%s)" % (discovery_api_url))
     app_token = _get_valid_socrata_app_token()
     sources = _process_socrata_raw_metadata(discovery_api_url, 50, app_token)
     for source in sources:
         add_socrata_resource.delay(source, app_token=app_token,
-                bucket_name=bucket_name, blob_prefix=blob_prefix,
-                force_update=force_update)
+                blob_prefix=blob_prefix, force_update=force_update)
 
 
 def _process_socrata_raw_metadata(discovery_api_url, page_size, token):
@@ -201,7 +196,6 @@ def add_socrata_discovery_apis(force_update):
     conn.close()
     for api_url in api_urls:
         add_socrata_resources_from_api.delay(api_url,
-                gcp_configs.get("bucket_name"),
                 crawler_configs.get("socrata_blob_prefix"), force_update)
         logger.info("Adding Socrata Discovery API {} to the crawler".format(
             api_url))

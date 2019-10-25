@@ -9,7 +9,6 @@ app = Celery("crawler",
         include=[
                 "crawler.ckan_crawler",
                 "crawler.socrata_crawler",
-                "crawler.curation",
                 "crawler.indexing",
                 "crawler.metadata",
                 ])

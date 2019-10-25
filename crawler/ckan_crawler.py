@@ -10,7 +10,7 @@ from celery.utils.log import get_task_logger
 from .celery import app
 from .ckan import read_api, extract_timestamp_from_package, \
     extract_timestamp_from_resource
-from .storage import save_file, save_object
+from .storage import storage
 from .download import download_to_local
 from .util import temporary_directory, get_safe_filename
 from .settings import crawler_configs, db_configs, gcp_configs
@@ -26,21 +26,20 @@ accepted_resource_formats = ["csv",]
 
 
 @app.task(ignore_result=True)
-def add_ckan_package(package, endpoint, bucket_name, blob_prefix):
+def add_ckan_package(package, endpoint, blob_prefix):
     """Registers the CKAN package and starts tasks for retrieving and adding
     associated resources (i.e. files).
 
     Args:
         package: the CKAN package JSON.
         endpoint: the CKAN endpoint (i.e., data.gov.uk) without http://.
-        bucket_name: the name of the cloud storage bucket to upload all blobs.
         blob_prefix: the prefix for all the blobs uploaded from this
-            function, relative to the root of the bucket.
+            function, relative to the root.
     """
     package_id = package["id"]
 
     # Upload the package JSON.
-    package_blob = save_object(package, bucket_name,
+    package_blob = storage.put_object(package,
             os.path.join(blob_prefix, endpoint, package_id, "package.json"))
     logger.info("(endpoint={} package={}) Saved package JSON.".format(endpoint,
         package_id))
@@ -83,7 +82,7 @@ def add_ckan_package(package, endpoint, bucket_name, blob_prefix):
                     resource=resource)
         else:
             add_ckan_resource.delay(package_key=package_key, resource=resource,
-                    bucket_name=bucket_name, package_path=resource_blob_prefix)
+                    package_path=resource_blob_prefix)
 
 
 @app.task(ignore_result=True)
@@ -134,15 +133,14 @@ def add_ckan_resource_no_download(package_key, resource):
 
 
 @app.task(ignore_result=True)
-def add_ckan_resource(package_key, resource, bucket_name, package_path):
+def add_ckan_resource(package_key, resource, package_path):
     """Retrieves and adds CKAN resource files for the given resource.
 
     Args:
         package_key: the key of the package associated with the resource.
         resource: the portion of the JSON data in the CKAN package
             corresponds to the resource.
-        bucket_name: the name of the cloud storage bucket to upload all blobs.
-        package_path: the storage bucket path to the directory corresponding
+        package_path: the blob path to the directory corresponding
             to the package associated with the resource.
     """
     resource_id = resource.get("id", None)
@@ -196,8 +194,7 @@ def add_ckan_resource(package_key, resource, bucket_name, package_path):
         blob_name = os.path.join(package_path, resource_id, filename)
         try:
             with open(os.path.join(parent_dir, filename), "rb") as f:
-                resource_blob = save_file(f, bucket_name, blob_name,
-                        guess_content_bytes=1024*10)
+                resource_blob = storage.put_file(f, blob_name)
         except Exception as e:
             logger.warning("(package={} resource={}) Failed to save local "
                     "file {} to {}: {}".format(package_key, resource_id,
@@ -239,17 +236,15 @@ def add_ckan_resource(package_key, resource, bucket_name, package_path):
 
 
 @app.task(ignore_result=True)
-def add_ckan_packages_from_api(api_url, endpoint, bucket_name, blob_prefix,
-        force_update):
+def add_ckan_packages_from_api(api_url, endpoint, blob_prefix, force_update):
     """Scrolls through the CKAN package_search API to obtain packages and
     starts tasks to retrieve and add those packages.
 
     Args:
         api_url: the CKAN API endpoint URL (i.e., https://data.gov.uk).
         endpoint: the CKAN API endpoint without scheme (i.e., data.gov.uk).
-        bucket_name: the name of the cloud storage bucket to upload all blobs.
         blob_prefix: the prefix for all the blobs uploaded from this
-            function, relative to the root of the bucket.
+            function, relative to the root.
         force_update: whether to force update packages in the registry. By
             default, packages with updated time before the previously
             registered time will be skipped.
@@ -277,7 +272,7 @@ def add_ckan_packages_from_api(api_url, endpoint, bucket_name, blob_prefix,
                     and metadata_modified <= package_updated:
                 continue
         add_ckan_package.delay(package, endpoint=endpoint, 
-                bucket_name=bucket_name, blob_prefix=blob_prefix)
+                blob_prefix=blob_prefix)
 
 
 @app.task(ignore_result=True)
@@ -297,7 +292,6 @@ def add_ckan_apis(force_update):
     for api_url, endpoint in api_urls:
         add_ckan_packages_from_api.delay(api_url=api_url,
                 endpoint=endpoint,
-                bucket_name=gcp_configs.get("bucket_name"),
                 blob_prefix=crawler_configs.get("ckan_blob_prefix"),
                 force_update=force_update)
         logger.info("Adding CKAN API {} to the crawler".format(api_url))

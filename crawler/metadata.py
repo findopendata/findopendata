@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 import requests
 
 from .celery import app
-from .storage import get_object
+from .storage import storage
 from .settings import db_configs
 from .models.language_models import LanguageModel as lm
 
@@ -20,8 +20,7 @@ logger = get_task_logger(__name__)
 def index_ckan_package(
         crawler_package_key,
         package_blob_name,
-        endpoint,
-        bucket_name):
+        endpoint):
     """Register the crawled CKAN package into the centralized packages table for
     all types of packages to make it searchable. The following processes are
     performed:
@@ -34,7 +33,7 @@ def index_ckan_package(
             sketching.
     """
     # Get package metadata
-    package = get_object(bucket_name, package_blob_name)
+    package = storage.get_object(package_blob_name)
 
     # Get connection.
     conn = psycopg2.connect(**db_configs)
@@ -152,7 +151,6 @@ def index_ckan_package(
     for resource in resources:
         index_ckan_package_file(crawler_resource_key=resource["key"],
                 package_key=package_key,
-                bucket_name=bucket_name,
                 blob_name=resource["resource_blob"],
                 filename=resource["filename"],
                 file_size=resource["file_size"],
@@ -163,7 +161,6 @@ def index_ckan_package(
 def index_ckan_package_file(
         crawler_resource_key,
         package_key,
-        bucket_name,
         blob_name,
         filename,
         file_size,
@@ -175,7 +172,6 @@ def index_ckan_package_file(
     Args:
         crawler_resource_key: the primary key of the ckan_resources table.
         package_key: the primary key of the packages table.
-        bucket_name: the Cloud Storage bucket storing the blob.
         blob_name: the relative path to the blob of this package file.
         filename: the UNIX-friendly filename.
         file_size: the file size in bytes.
@@ -260,8 +256,7 @@ def index_socrata_resource(
         domain,
         metadata_blob_name,
         resource_blob_name,
-        dataset_size,
-        bucket_name):
+        dataset_size):
     """Register the crawled Scorata resource into the centralized packages
     table for all types of packages to make it searchable.
     The following processes are performed:
@@ -272,7 +267,7 @@ def index_socrata_resource(
             metadata enrichment.
     """
     # Get raw metadata
-    metadata = get_object(bucket_name, metadata_blob_name)
+    metadata = storage.get_object(metadata_blob_name)
 
     # Package fields extracted from raw metadata.
     created = metadata["resource"].get("createdAt")

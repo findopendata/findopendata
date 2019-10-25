@@ -7,7 +7,7 @@ from celery.utils.log import get_task_logger
 
 from .celery import app
 from .settings import db_configs
-from .storage import gcs_fs
+from .storage import storage
 from .parsers.csv import csv2json
 from .parsers.avro import avro2json
 from .parsers.jsonl import jsonl2json
@@ -58,7 +58,6 @@ _sketchers = {
 
 @app.task(ignore_result=True)
 def sketch_package_file(package_file_key,
-        bucket_name,
         blob_name,
         dataset_format,
         max_records,
@@ -73,7 +72,6 @@ def sketch_package_file(package_file_key,
 
     Args:
         package_file_key: the primary key of package_files table.
-        bucket_name: the Cloud Storage bucket that stores the package file.
         blob_name: the relative path to the blob of the package file.
         dataset_format: one of csv, jsonl, and avro.
         max_records: the maximum number of records to sketch.
@@ -87,9 +85,6 @@ def sketch_package_file(package_file_key,
         enable_word_vector_data: whether to create word vectors for the
             data values -- this can be 10x more expensive.
     """
-    # Build paths
-    blob_path = os.path.join(bucket_name, blob_name)
-
     # Get sketcher
     if dataset_format not in _sketchers:
         raise ValueError("{} is not supported".format(dataset_format))
@@ -97,7 +92,7 @@ def sketch_package_file(package_file_key,
 
     # Sketch the file.
     try:
-        with gcs_fs.open(blob_path, "rb") as input_file:
+        with storage.get_file(blob_name) as input_file:
             table_sketch = sketcher(input_file,
                     record_sample_size=table_sample_size,
                     max_records=max_records,
@@ -109,7 +104,7 @@ def sketch_package_file(package_file_key,
                     )
     except Exception as e:
         logger.error("Sketching {} ({}) failed due to {}".format(
-            blob_path, package_file_key, e))
+            blob_name, package_file_key, e))
         raise e
 
     try:
@@ -189,10 +184,10 @@ def sketch_package_file(package_file_key,
         conn.close()
     except Exception as e:
         logger.error("Error saving sketches of {} ({}) due to {}".format(
-            blob_path, package_file_key, e))
+            blob_name, package_file_key, e))
         raise e
 
     # Finish
-    logger.info("Sketching {} ({}) successful".format(blob_path,
+    logger.info("Sketching {} ({}) successful".format(blob_name,
         package_file_key))
 
