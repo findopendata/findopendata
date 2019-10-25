@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS findopendata.packages (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS package_crawler_idx ON findopendata.packages(crawler_table, crawler_key);
 CREATE UNIQUE INDEX IF NOT EXISTS packages_idx ON findopendata.packages (id);
-CREATE INDEX IF NOT EXISTS packages_fts_idx ON findopendata.packages USING gin (to_tsvector('english', title || description));
+CREATE INDEX IF NOT EXISTS packages_fts_idx ON findopendata.packages USING gin (to_tsvector('english', title || organization_display_name || description));
 CREATE INDEX IF NOT EXISTS packages_fts_title_idx ON findopendata.packages USING gin (to_tsvector('english', title));
 CREATE INDEX IF NOT EXISTS packages_title_trgm_idx ON findopendata.packages USING GIN (title gin_trgm_ops);
 
