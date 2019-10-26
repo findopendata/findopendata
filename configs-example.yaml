@@ -1,3 +1,15 @@
+# Storage settings
+storage:
+  # The storage provider, choose from 'gcp' and 'local'.
+  # Choose 'local' if you are going to store all datasets on your local file
+  # system.
+  provider: local
+
+# Local settings
+local:
+  # The local storage's root directory
+  root: 
+
 # Google Cloud settings
 gcp:
   project_name: 
