@@ -48,10 +48,8 @@ To develop locally, you need the following:
 
 * PostgreSQL 9.6 or above
 * RabbitMQ
-* A Google Cloud project with Cloud Storage enabled.
-* Google Cloud service account key file (JSON formatted) with read and write access to Cloud Storage bucket
-
-**TODO**: get rid of Google Cloud requirement for local development.
+* (Optional) A Google Cloud project with Cloud Storage enabled.
+* (Optional) Google Cloud service account key file (JSON formatted) with read and write access to Cloud Storage bucket
 
 ### Set up local development environment
 
@@ -104,6 +102,9 @@ pip install python_snappy‑0.5.4‑cp37‑cp37m‑win_amd64.whl
 
 Create a `configs.yaml` by copying `configs-example.yaml`, complete all fields.
 
+If you plan to store all datasets on your local file system,
+you can skip the `gcp` section and only complete the `local` section,
+then make sure the `storage.provider` is set to `local`.
 
 ## Crawler Guide
 

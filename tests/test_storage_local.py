@@ -49,17 +49,6 @@ class TestLocalStorage(unittest.TestCase):
             obj = storage.get_object("test_blob")
             self.assertEqual(test_obj, obj)
     
-    def test_put_and_get_object_gzip(self):
-        with tempfile.TemporaryDirectory() as root:
-            storage = LocalStorage(root)
-            blob = storage.put_object(test_obj, "test_blob", gzip_compress=True)
-            self.assertEqual(blob.name, "test_blob")
-            self.assertTrue(blob.size > 0)
-            self.assertTrue(os.path.exists(os.path.join(root, "test_blob")))
-
-            obj = storage.get_object("test_blob", gzip_decompress=True)
-            self.assertEqual(test_obj, obj)
-
     def test_put_and_get_file(self):
         with tempfile.TemporaryDirectory() as root:
             storage = LocalStorage(root)
@@ -73,19 +62,6 @@ class TestLocalStorage(unittest.TestCase):
                 data = f.read().decode("utf-8")
                 self.assertEqual(data, test_file_content)
             
-    def test_put_and_get_file_gzip(self):
-        with tempfile.TemporaryDirectory() as root:
-            storage = LocalStorage(root)
-            fileobj = io.BytesIO(test_file_content.encode("utf-8"))
-            blob = storage.put_file(fileobj, "test_blob", gzip_compress=True)
-            self.assertEqual(blob.name, "test_blob")
-            self.assertGreater(blob.size, 0)
-            self.assertTrue(os.path.exists(os.path.join(root, "test_blob")))
-
-            with storage.get_file("test_blob", gzip_decompress=True) as f:
-                data = f.read().decode("utf-8")
-                self.assertEqual(data, test_file_content)
-    
     def test_put_avro(self):
         with tempfile.TemporaryDirectory() as root:
             storage = LocalStorage(root)
