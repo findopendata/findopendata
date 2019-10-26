@@ -10,7 +10,7 @@ from celery.utils.log import get_task_logger
 from .celery import app
 from .ckan import read_api, extract_timestamp_from_package, \
     extract_timestamp_from_resource
-from .storage import storage
+from .storage.objects import storage
 from .download import download_to_local
 from .util import temporary_directory, get_safe_filename
 from .settings import crawler_configs, db_configs, gcp_configs

@@ -7,7 +7,7 @@ import psycopg2
 from celery.utils.log import get_task_logger
 
 from .celery import app
-from .storage import storage
+from .storage.objects import storage
 from .parsers.avro import JSON2AvroRecords
 from .settings import crawler_configs, db_configs, gcp_configs
 from .socrata import socrata_records

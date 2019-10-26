@@ -2,6 +2,17 @@
 
 [![Build Status](https://travis-ci.org/findopendata/findopendata.svg?branch=master)](https://travis-ci.org/findopendata/findopendata)
 
+![Screenshot](screencapture.gif)
+
+Table of Content:
+1. [Introduction](#introduction)
+2. [System Overview](#system-overview)
+3. [Development Guide](#development-guide)
+4. [Cloud Storage Systems](#cloud-storage-systems)
+5. [Crawler Guide](#crawler-guide)
+
+## Introduction
+
 This is the source code repository for [findopendata.com](https://findopendata.com).
 The project goal is to make a search engine for Open Data with rich 
 features beyond simple keyword search. The current search methods are:
@@ -19,7 +30,6 @@ Next steps:
 
 **This is a work in progress.**
 
-![Screenshot](screencapture.gif)
 
 ## System Overview
 
@@ -36,9 +46,8 @@ deployed to
 
 We also use two external storage systems for persistence:
 
-1. A PostgreSQL database for storing dataset registry, metadata,
-and sketches for content-based search.
-2. A Google Cloud Storage Bucket for storing dataset files.
+1. A PostgreSQL database for storing dataset registry, metadata, and sketches for content-based search.
+2. A cloud-based storage system for storing dataset files, currently supporting Google Cloud Storage and Azure Blob Storage. A local storage using file system is also available.
 
 ![System Overview](system_overview.png)
 
@@ -48,10 +57,6 @@ To develop locally, you need the following:
 
 * PostgreSQL 9.6 or above
 * RabbitMQ
-* (Optional) A Google Cloud project with Cloud Storage enabled.
-* (Optional) Google Cloud service account key file (JSON formatted) with read and write access to Cloud Storage bucket
-
-### Set up local development environment
 
 #### 1. Install PostgreSQL
 
@@ -100,11 +105,33 @@ pip install python_snappy‑0.5.4‑cp37‑cp37m‑win_amd64.whl
 
 #### 4. Configuration File
 
-Create a `configs.yaml` by copying `configs-example.yaml`, complete all fields.
+Create a `configs.yaml` by copying `configs-example.yaml`, complete fields
+related to PostgreSQL and storage.
 
 If you plan to store all datasets on your local file system,
-you can skip the `gcp` section and only complete the `local` section,
-then make sure the `storage.provider` is set to `local`.
+you can skip the `gcp` and `azure` sections and only complete 
+the `local` section, and make sure the `storage.provider` is 
+set to `local`.
+
+For cloud-based storage systems, see 
+[Cloud Storage Systems](#cloud-storage-systems).
+
+## Cloud Storage Systems
+
+Currently we support using 
+[Google Cloud Storage](https://cloud.google.com/storage/) and 
+[Azure Blob Storage](https://azure.microsoft.com/en-us/services/storage/blobs/) 
+as the dataset storage system.
+
+To use Google Cloud Storage, you need:
+* A Google Cloud project with Cloud Storage enabled, and a bucket created.
+* A Google Cloud service account key file (JSON formatted) with read and write access to the Cloud Storage bucket.
+* Set `storage.provider` to `gcp` in `configs.yaml`.
+
+To use Azure Blob Storage, you need:
+* An Azure storage account enabled, and a blob storage container created.
+* A connection string to access the storage account.
+* Set `storage.provider` to `azure` in `configs.yaml`.
 
 ## Crawler Guide
 

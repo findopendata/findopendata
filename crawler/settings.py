@@ -24,6 +24,9 @@ local_configs = configs.get("local")
 # GCP configurations.
 gcp_configs = configs.get("gcp")
 
+# Azure configurations.
+azure_configs = configs.get("azure")
+
 # Crawler configurations.
 crawler_configs = configs.get("crawler")
 

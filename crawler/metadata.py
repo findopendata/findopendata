@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 import requests
 
 from .celery import app
-from .storage import storage
+from .storage.objects import storage
 from .settings import db_configs
 from .models.language_models import LanguageModel as lm
 

@@ -7,7 +7,7 @@ from celery.utils.log import get_task_logger
 
 from .celery import app
 from .settings import db_configs
-from .storage import storage
+from .storage.objects import storage
 from .parsers.csv import csv2json
 from .parsers.avro import avro2json
 from .parsers.jsonl import jsonl2json

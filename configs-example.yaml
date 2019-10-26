@@ -10,6 +10,13 @@ local:
   # The local storage's root directory
   root: 
 
+# Azure storage settings
+azure:
+  # The connection string associated the Azure storage account.
+  connection_string: 
+  # The name of the container used to store all dataset files.
+  container_name:
+
 # Google Cloud settings
 gcp:
   project_name: 
