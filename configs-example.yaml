@@ -16,6 +16,9 @@ azure:
   connection_string: 
   # The name of the container used to store all dataset files.
   container_name:
+  # The logging level of the storage client
+  # See https://docs.python.org/3/howto/logging.html#logging-levels
+  log_level: 30 # warning
 
 # Google Cloud settings
 gcp:

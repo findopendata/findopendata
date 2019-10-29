@@ -1,3 +1,5 @@
+import logging
+
 from ..settings import azure_configs
 from ..settings import local_configs
 from ..settings import gcp_configs
@@ -27,8 +29,12 @@ def BlobStorageFactory(provider="local") -> BlobStorage:
                 bucket_name=bucket_name,
                 service_account_file=service_account_file)
     if provider == "azure":
+        # Set logging level
         connection_string = azure_configs.get("connection_string") 
         container_name = azure_configs.get("container_name")
+        log_level = azure_configs.get("log_level", type=int)
+        logging.getLogger("azure.storage.common.storageclient")\
+                .setLevel(log_level)
         return AzureStorage(connection_string=connection_string,
                 container_name=container_name)
     raise ValueError("Uknown provider: "+provider)
