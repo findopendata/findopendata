@@ -175,7 +175,7 @@ def _get_valid_socrata_app_token():
     conn = psycopg2.connect(**db_configs)
     cur = conn.cursor()
     cur.execute("SELECT token FROM findopendata.socrata_app_tokens "
-            "WHERE valid = true ORDER BY random() LIMIT 1")
+            "ORDER BY random() LIMIT 1")
     row = cur.fetchone()
     cur.close()
     conn.close()
