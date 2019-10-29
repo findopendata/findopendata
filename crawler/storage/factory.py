@@ -32,7 +32,7 @@ def BlobStorageFactory(provider="local") -> BlobStorage:
         # Set logging level
         connection_string = azure_configs.get("connection_string") 
         container_name = azure_configs.get("container_name")
-        log_level = int(azure_configs.get("log_leve"))
+        log_level = int(azure_configs.get("log_level"))
         logging.getLogger("azure.storage.common.storageclient")\
                 .setLevel(log_level)
         return AzureStorage(connection_string=connection_string,
