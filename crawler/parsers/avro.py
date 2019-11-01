@@ -28,7 +28,7 @@ def _json_to_avro_schema(json_schema, field_names=None, name="Root"):
         fields = []
         for prop in json_schema["properties"]:
             avro_type = _json_to_avro_schema(json_schema["properties"][prop],
-                    "{}_type".format(prop))
+                    name="{}_type".format(prop))
             if isinstance(avro_type, list):
                 avro_type = ["null",] + avro_type
             else:
@@ -37,14 +37,17 @@ def _json_to_avro_schema(json_schema, field_names=None, name="Root"):
         if field_names is not None:
             field_order = dict((field, i)
                     for i, field in enumerate(field_names))
-            fields = sorted(fields, key=lambda f: field_order.get(f["name"]))
+            # In some cases field_names may not match the actual fields in the 
+            # records -- put those fields at the end.
+            fields = sorted(fields, 
+                    key=lambda f: field_order.get(f["name"], len(field_order)))
         return {"type": "record", "name": name, "fields": fields}
     elif json_schema["type"] == "array":
         return {
                 "type" : "array",
                 "items": _json_to_avro_schema(
                     json_schema["items"],
-                    "{}_item_type".format(name),
+                    name="{}_item_type".format(name),
                     ),
                 }
     return _avro_type(json_schema["type"])
