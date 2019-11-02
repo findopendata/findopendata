@@ -32,12 +32,21 @@ class AzureBlobReader(io.BufferedIOBase):
         self._start = 0
         self._chunk_size = block_blob_service.MAX_CHUNK_GET_SIZE 
         self._buf = bytearray()
+        # Get the total size of the blob.
+        blob = self._service.get_blob_properties(self._container_name, 
+                self._blob_name)
+        self._total_size = blob.properties.content_length
     
     def writable(self):
         return False
     
     def read(self, size=-1):
         while (not size or size < 0) or len(self._buf) < size:
+            if self._start >= self._total_size:
+                break
+            end_range = self._start + self._chunk_size - 1
+            if end_range >= self._total_size:
+                end_range = self._total_size - 1
             blob = self._service.get_blob_to_bytes(self._container_name, 
                     self._blob_name, start_range=self._start,
                     end_range=self._start+self._chunk_size-1)
