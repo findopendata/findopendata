@@ -74,6 +74,8 @@ class AzureBlobWriter(io.BufferedIOBase):
         self._buf = bytearray()
         self._block_offset = 0
         self._blocks = collections.deque([])
+        self._closed = False
+        self._position = 0
     
     def readable(self):
         return False
@@ -87,6 +89,7 @@ class AzureBlobWriter(io.BufferedIOBase):
             self._blocks.append(BlobBlock(block_id))
             self._block_offset += 1
             self._buf = self._buf[self._block_size:]
+        self._position += len(b)
         return len(b)
 
     def flush(self):
@@ -97,12 +100,25 @@ class AzureBlobWriter(io.BufferedIOBase):
             self._blocks.append(BlobBlock(block_id))
             self._block_offset += 1
             self._buf.clear()
+    
+    def close(self):
+        if self._closed:
+            return
+        self.flush()
         # Put the block list to make the blob.
         self._service.put_block_list(self._container_name, self._blob_name,
                 list(self._blocks))
+        self._closed = True
+        self._blocks.clear()
+    
+    def closed(self):
+        return self._closed
 
     def tell(self):
-        return self._block_offset*self._block_size + len(self._buf)
+        return self._position
+    
+    def seekable(self):
+        return False
 
 
 class AzureStorage(BlobStorage):
@@ -151,6 +167,6 @@ class AzureStorage(BlobStorage):
         writer = AzureBlobWriter(self._service,
             self._container_name, blob_name)
         fastavro.writer(writer, schema, records, codec)
-        writer.flush()
+        writer.close()
         size = writer.tell() 
         return Blob(blob_name, size)

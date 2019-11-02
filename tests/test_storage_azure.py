@@ -60,8 +60,10 @@ class TestAzureStorage(unittest.TestCase):
     def test_put_and_get_object(self):
         blob = self.storage.put_object(test_obj, "test_object_blob")
         self.assertEqual(blob.name, "test_object_blob")
-        self.assertTrue(blob.size > 0)
         self.__class__.service.exists(container_name, "test_object_blob")
+        size = self.__class__.service.get_blob_properties(container_name, 
+                "test_object_blob").properties.content_length
+        self.assertEqual(blob.size, size)
 
         obj = self.storage.get_object("test_object_blob")
         self.assertEqual(obj, test_obj)
@@ -70,23 +72,56 @@ class TestAzureStorage(unittest.TestCase):
         fileobj = io.BytesIO(test_file_content.encode("utf-8"))
         blob = self.storage.put_file(fileobj, "test_file_blob")
         self.assertEqual(blob.name, "test_file_blob")
-        self.assertGreater(blob.size, 0)
         self.__class__.service.exists(container_name, "test_file_blob")
+        size = self.__class__.service.get_blob_properties(container_name, 
+                "test_file_blob").properties.content_length
+        self.assertEqual(blob.size, size)
 
         with self.storage.get_file("test_file_blob") as f:
             data = f.read().decode("utf-8")
             self.assertEqual(data.strip(), test_file_content.strip())
             
+    def test_put_and_get_lareg_file(self):
+        test_large_file_content = test_file_content.encode("utf-8")*1000000
+        fileobj = io.BytesIO(test_large_file_content)
+        blob = self.storage.put_file(fileobj, "test_large_file_blob")
+        self.assertEqual(blob.name, "test_large_file_blob")
+        self.__class__.service.exists(container_name, "test_large_file_blob")
+        size = self.__class__.service.get_blob_properties(container_name, 
+                "test_large_file_blob").properties.content_length
+        self.assertEqual(blob.size, size)
+
+        with self.storage.get_file("test_large_file_blob") as f:
+            data = f.read()
+            self.assertEqual(data.strip(), test_large_file_content.strip())
+            
     def test_put_avro(self):
         blob = self.storage.put_avro(test_avro_schema, test_avro_records, 
                 "test_avro_blob")
         self.assertEqual(blob.name, "test_avro_blob")
-        self.assertGreater(blob.size, 0)
         self.__class__.service.exists(container_name, "test_avro_blob")
+        size = self.__class__.service.get_blob_properties(container_name, 
+                "test_avro_blob").properties.content_length
+        self.assertEqual(blob.size, size)
 
         with self.storage.get_file("test_avro_blob") as f:
             records = avro2json(f)
             for r1, r2 in zip(records, test_avro_records):
+                self.assertEqual(dict(r1), r2)
+            
+    def test_put_avro_large(self):
+        test_large_avro_records = test_avro_records*1000000
+        blob = self.storage.put_avro(test_avro_schema, test_large_avro_records, 
+                "test_avro_blob")
+        self.assertEqual(blob.name, "test_avro_blob")
+        self.__class__.service.exists(container_name, "test_avro_blob")
+        size = self.__class__.service.get_blob_properties(container_name, 
+                "test_avro_blob").properties.content_length
+        self.assertEqual(blob.size, size)
+
+        with self.storage.get_file("test_avro_blob") as f:
+            records = avro2json(f)
+            for r1, r2 in zip(records, test_large_avro_records):
                 self.assertEqual(dict(r1), r2)
             
 
