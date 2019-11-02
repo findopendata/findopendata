@@ -1,5 +1,6 @@
 import re
 import io
+import random
 
 import requests
 import dateutil.parser
@@ -145,10 +146,11 @@ def add_socrata_resources_from_api(discovery_api_url, blob_prefix,
             function, relative to the root.
     """
     logger.info("(discovery_api_url=%s)" % (discovery_api_url))
-    app_token = _get_valid_socrata_app_token()
-    sources = _process_socrata_raw_metadata(discovery_api_url, 50, app_token)
+    app_tokens = _get_socrata_app_tokens()
+    sources = _process_socrata_raw_metadata(discovery_api_url, 50, 
+            random.choice(app_tokens))
     for source in sources:
-        add_socrata_resource.delay(source, app_token=app_token,
+        add_socrata_resource.delay(source, app_token=random.choice(app_tokens),
                 blob_prefix=blob_prefix, force_update=force_update)
 
 
@@ -171,17 +173,17 @@ def _process_socrata_raw_metadata(discovery_api_url, page_size, token):
             yield metadata
 
 
-def _get_valid_socrata_app_token():
+def _get_socrata_app_tokens():
     conn = psycopg2.connect(**db_configs)
     cur = conn.cursor()
     cur.execute("SELECT token FROM findopendata.socrata_app_tokens "
-            "ORDER BY random() LIMIT 1")
-    row = cur.fetchone()
+            "ORDER BY random()")
+    rows = cur.fetchall()
     cur.close()
     conn.close()
-    if row is None:
-        raise RuntimeError("Cannot found a valid Socrata app token!")
-    return row[0]
+    if not rows:
+        raise RuntimeError("Cannot found a Socrata app token!")
+    return [row[0] for row in rows]
 
 
 @app.task(ignore_result=True)
