@@ -41,6 +41,7 @@ postgres:
 # Celery settings
 celery:
   broker: amqp://guest@localhost:5672/
+  queue: "findopendata"
 
 # Crawler settings
 crawler:

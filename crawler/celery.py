@@ -4,6 +4,7 @@ from celery import Celery
 
 from .settings import celery_configs
 
+
 app = Celery("crawler",
         broker=celery_configs.get("broker", "amqp://"),
         include=[
@@ -12,6 +13,7 @@ app = Celery("crawler",
                 "crawler.indexing",
                 "crawler.metadata",
                 ])
+app.conf.task_default_queue = celery_configs.get("queue")
 
 
 if __name__ == "__main__":
