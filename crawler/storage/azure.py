@@ -48,8 +48,8 @@ class AzureBlobReader(io.BufferedIOBase):
             if end_range >= self._total_size:
                 end_range = self._total_size - 1
             blob = self._service.get_blob_to_bytes(self._container_name, 
-                    self._blob_name, start_range=self._start,
-                    end_range=self._start+self._chunk_size-1)
+                    self._blob_name, start_range=self._start, 
+                    end_range=end_range)
             if len(blob.content) == 0:
                 break
             self._buf += bytearray(blob.content)
