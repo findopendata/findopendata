@@ -140,3 +140,14 @@ env-localhost.sh
 configs.yaml
 
 .DS_Store
+
+# Azurite
+__azurite*.json
+__blobstorage__
+.ensime_cache
+
+# Crawler worker tmp
+tmp
+
+#spacy
+schema.json

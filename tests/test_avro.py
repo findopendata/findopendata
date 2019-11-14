@@ -4,7 +4,7 @@ from collections import OrderedDict
 
 import fastavro
 
-from crawler.parsers.avro import JSON2AvroRecords, avro2json
+from findopendata.parsers.avro import JSON2AvroRecords, avro2json
 
 
 records = [

@@ -38,7 +38,7 @@ The Find Open Data system has the following components:
 1. **Frontend**: a React app, located in `frontend`.
 2. **API Server**: a Flask web server, located in `apiserver`.
 3. **LSH Server**: a Go web server, located in `lshserver`.
-4. **Crawler**: a set of [Celery](https://docs.celeryproject.org/en/latest/userguide/tasks.html) tasks, located in `crawler`. 
+4. **Crawler**: a set of [Celery](https://docs.celeryproject.org/en/latest/userguide/tasks.html) tasks, located in `findopendata`. 
 
 The Frontend, the API Server, and the LSH Server can be 
 deployed to 
@@ -86,10 +86,10 @@ Run the RabbitMQ server after finishing install.
 
 #### 3. Python Environment
 
-We use virtualenv for Python development and dependencies:
+It is recommended to use virtualenv for Python development and dependencies:
 ```
-virtualenv -p python3 pyenv
-pip install -r requirements.txt
+virtualenv -p python3 .venv
+source .venv/bin/activate # .\venv\bin\activate on Windows
 ```
 
 `python-snappy` requires `libsnappy`. On Ubuntu you can 
@@ -101,6 +101,11 @@ unofficial binary maintained by UC Irvine
 and install directly, for example (Python 3.7, amd64):
 ```
 pip install python_snappy‑0.5.4‑cp37‑cp37m‑win_amd64.whl
+```
+
+Finally, install this package and other dependencies:
+```
+pip install -e .
 ```
 
 #### 4. Configuration File
@@ -181,13 +186,13 @@ The worker processes must be started before starting any tasks.
 
 For example:
 ```
-celery -A crawler worker -l info -Ofair
+celery -A findopendata worker -l info -Ofair
 ```
 
 On Windows there are some issues with using prefork process pool.
 Use `gevent` instead:
 ```
-celery -A crawler worker -l info -Ofair -P gevent
+celery -A findopendata worker -l info -Ofair -P gevent
 ```
 
 #### Harvest Datasets

@@ -6,8 +6,8 @@ import collections
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-from crawler.settings import db_configs, index_configs
-from crawler.indexing import sketch_package_file
+from findopendata.settings import db_configs, index_configs
+from findopendata.indexing import sketch_package_file
 
 
 _sql = r"""

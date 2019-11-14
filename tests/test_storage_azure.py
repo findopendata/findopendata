@@ -5,8 +5,8 @@ import tempfile
 
 from azure.storage.blob import BlockBlobService
 
-from crawler.storage.azure import AzureStorage
-from crawler.parsers.avro import avro2json
+from findopendata.storage.azure import AzureStorage
+from findopendata.parsers.avro import avro2json
 
 test_obj = {
     "name" : "First name Last name",

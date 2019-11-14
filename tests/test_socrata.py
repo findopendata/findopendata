@@ -3,9 +3,9 @@ import json
 import unittest
 import tempfile
 
-from crawler.socrata import socrata_records
-from crawler.parsers.avro import JSON2AvroRecords
-from crawler.storage.local import LocalStorage
+from findopendata.socrata import socrata_records
+from findopendata.parsers.avro import JSON2AvroRecords
+from findopendata.storage.local import LocalStorage
 
 class TestSocrataRecords(unittest.TestCase):
 

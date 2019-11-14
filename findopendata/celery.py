@@ -5,13 +5,13 @@ from celery import Celery
 from .settings import celery_configs
 
 
-app = Celery("crawler",
+app = Celery("findopendata",
         broker=celery_configs.get("broker", "amqp://"),
         include=[
-                "crawler.ckan_crawler",
-                "crawler.socrata_crawler",
-                "crawler.indexing",
-                "crawler.metadata",
+                "findopendata.ckan_crawler",
+                "findopendata.socrata_crawler",
+                "findopendata.indexing",
+                "findopendata.metadata",
                 ])
 app.conf.task_default_queue = celery_configs.get("queue")
 

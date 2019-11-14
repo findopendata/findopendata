@@ -2,8 +2,8 @@
 import argparse
 import sys
 
-from crawler.ckan_crawler import add_ckan_apis
-from crawler.socrata_crawler import add_socrata_discovery_apis
+from findopendata.ckan_crawler import add_ckan_apis
+from findopendata.socrata_crawler import add_socrata_discovery_apis
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

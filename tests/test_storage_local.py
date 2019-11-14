@@ -3,8 +3,8 @@ import io
 import unittest
 import tempfile
 
-from crawler.storage.local import LocalStorage
-from crawler.parsers.avro import avro2json
+from findopendata.storage.local import LocalStorage
+from findopendata.parsers.avro import avro2json
 
 test_obj = {
     "name" : "First name Last name",

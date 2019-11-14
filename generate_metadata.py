@@ -5,8 +5,8 @@ import collections
 
 import psycopg2
 
-from crawler.settings import db_configs
-from crawler.metadata import index_ckan_package, index_socrata_resource
+from findopendata.settings import db_configs
+from findopendata.metadata import index_ckan_package, index_socrata_resource
 
 
 _sql_ckan_force_update = r"""
