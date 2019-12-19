@@ -1,6 +1,7 @@
 import os
 import contextlib
 import shutil
+import gzip
 
 import simplejson as json
 import fastavro
@@ -67,5 +68,21 @@ class LocalStorage(BlobStorage):
         path = self._get_path_and_create_dir(blob_name)
         with open(path, "wb") as f:
             fastavro.writer(f, schema, records, codec)
+        size = os.path.getsize(path)
+        return Blob(blob_name, size)
+    
+    def put_json(self, records, blob_name, gzip_compress=True):
+        path = self._get_path_and_create_dir(blob_name)
+        newline = "\n"
+        if gzip_compress:
+            with gzip.open(path, "wt") as f:
+                for record in records:
+                    f.write(json.dumps(record))
+                    f.write(newline)
+        else:
+            with open(path, "w") as f:
+                for record in records:
+                    f.write(json.dumps(record))
+                    f.write(newline)
         size = os.path.getsize(path)
         return Blob(blob_name, size)

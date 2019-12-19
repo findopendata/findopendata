@@ -2,9 +2,12 @@ import os
 import io
 import unittest
 import tempfile
+import gzip
+import json
 
 from findopendata.storage.local import LocalStorage
 from findopendata.parsers.avro import avro2json
+from findopendata.parsers.jsonl import jsonl2json
 
 test_obj = {
     "name" : "First name Last name",
@@ -75,6 +78,21 @@ class TestLocalStorage(unittest.TestCase):
                 records = avro2json(f)
                 for r1, r2 in zip(records, test_avro_records):
                     self.assertEqual(dict(r1), r2)
+            
+    def test_put_json(self):
+        with tempfile.TemporaryDirectory() as root:
+            storage = LocalStorage(root)
+            blob = storage.put_json(test_avro_records, "test_json_blob")
+            self.assertEqual(blob.name, "test_json_blob")
+            self.assertGreater(blob.size, 0)
+            self.assertTrue(os.path.exists(os.path.join(root, 
+                    "test_json_blob")))
+
+            with storage.get_file("test_json_blob") as f:
+                f = io.TextIOWrapper(gzip.GzipFile(fileobj=f, mode="rb"))
+                records = [json.loads(line) for line in f]
+                for r1, r2 in zip(records, test_avro_records):
+                    self.assertEqual(r1, r2)
             
 
 if __name__ == "__main__":

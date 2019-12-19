@@ -1,5 +1,6 @@
 import os
 import contextlib
+import gzip
 
 import simplejson as json
 import fastavro
@@ -67,4 +68,26 @@ class GoogleCloudStorage(BlobStorage):
         blob = self._client.bucket(self._bucket_name).get_blob(blob_name)
         if blob is None:
             raise RuntimeError("Cannot find new avro blob: "+blob_name)
+        return Blob(blob_name, blob.size)
+    
+    def put_json(self, records, blob_name, gzip_compress=True):
+        path = os.path.join(self._bucket_name, blob_name)
+        tmp_path = os.path.join(os.path.dirname(path),
+                "~{}".format(os.path.basename(path)))
+        newline = "\n"
+        with self._fs.open(tmp_path, "wb") as of:
+            if gzip_compress:
+                with gzip.open(of, "wt") as of:
+                    for record in records:
+                        of.write(json.dumps(record))
+                        of.write(newline)
+            else:
+                for record in records:
+                    of.write(json.dumps(record))
+                    of.write(newline)
+        self._fs.mv(tmp_path, path)
+        self._fs.setxattrs(path, content_type="application/json")
+        blob = self._client.bucket(self._bucket_name).get_blob(blob_name)
+        if blob is None:
+            raise RuntimeError("Cannot find new JSON blob: "+blob_name)
         return Blob(blob_name, blob.size)

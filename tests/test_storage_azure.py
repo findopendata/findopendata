@@ -2,6 +2,8 @@ import os
 import io
 import unittest
 import tempfile
+import json
+import gzip
 
 from azure.storage.blob import BlockBlobService
 
@@ -81,7 +83,7 @@ class TestAzureStorage(unittest.TestCase):
             data = f.read().decode("utf-8")
             self.assertEqual(data.strip(), test_file_content.strip())
             
-    def test_put_and_get_lareg_file(self):
+    def test_put_and_get_large_file(self):
         test_large_file_content = test_file_content.encode("utf-8")*1000000
         fileobj = io.BytesIO(test_large_file_content)
         blob = self.storage.put_file(fileobj, "test_large_file_blob")
@@ -109,6 +111,20 @@ class TestAzureStorage(unittest.TestCase):
             for r1, r2 in zip(records, test_avro_records):
                 self.assertEqual(dict(r1), r2)
             
+    def test_put_json(self):
+        blob = self.storage.put_json(test_avro_records, "test_json_blob")
+        self.assertEqual(blob.name, "test_json_blob")
+        self.__class__.service.exists(container_name, "test_json_blob")
+        size = self.__class__.service.get_blob_properties(container_name, 
+                "test_json_blob").properties.content_length
+        self.assertEqual(blob.size, size)
+
+        with self.storage.get_file("test_json_blob") as f:
+            f = io.TextIOWrapper(gzip.GzipFile(fileobj=f, mode="rb"))
+            records = [json.loads(line) for line in f]
+            for r1, r2 in zip(records, test_avro_records):
+                self.assertEqual(r1, r2)
+            
     def test_put_avro_large(self):
         test_large_avro_records = test_avro_records*1000000
         blob = self.storage.put_avro(test_avro_schema, test_large_avro_records, 
@@ -123,6 +139,21 @@ class TestAzureStorage(unittest.TestCase):
             records = avro2json(f)
             for r1, r2 in zip(records, test_large_avro_records):
                 self.assertEqual(dict(r1), r2)
+            
+    def test_put_json_large(self):
+        test_large_avro_records = test_avro_records*1000000
+        blob = self.storage.put_json(test_large_avro_records, "test_json_blob")
+        self.assertEqual(blob.name, "test_json_blob")
+        self.__class__.service.exists(container_name, "test_json_blob")
+        size = self.__class__.service.get_blob_properties(container_name, 
+                "test_json_blob").properties.content_length
+        self.assertEqual(blob.size, size)
+
+        with self.storage.get_file("test_json_blob") as f:
+            f = io.TextIOWrapper(gzip.GzipFile(fileobj=f, mode="rb"))
+            records = [json.loads(line) for line in f]
+            for r1, r2 in zip(records, test_large_avro_records):
+                self.assertEqual(r1, r2)
             
 
 if __name__ == "__main__":

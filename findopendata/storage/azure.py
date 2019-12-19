@@ -3,6 +3,7 @@ import base64
 import contextlib
 import urllib
 import collections
+import gzip
 
 import fastavro
 import simplejson as json
@@ -167,6 +168,24 @@ class AzureStorage(BlobStorage):
         writer = AzureBlobWriter(self._service,
             self._container_name, blob_name)
         fastavro.writer(writer, schema, records, codec)
+        writer.close()
+        size = writer.tell() 
+        return Blob(blob_name, size)
+
+    def put_json(self, records, blob_name, gzip_compress=True):
+        writer = AzureBlobWriter(self._service,
+            self._container_name, blob_name)
+        newline = "\n"
+        if gzip_compress:
+            with gzip.open(writer, "wt") as f:
+                for record in records:
+                    f.write(json.dumps(record))
+                    f.write(newline)
+        else:
+            with io.TextIOWrapper(writer) as f:
+                for record in records:
+                    f.write(json.dumps(record))
+                    f.write(newline)
         writer.close()
         size = writer.tell() 
         return Blob(blob_name, size)

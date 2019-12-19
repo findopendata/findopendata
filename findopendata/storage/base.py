@@ -88,3 +88,17 @@ class BlobStorage(object):
             blob: the blob object that was created.
         """
         pass
+
+    @abc.abstractmethod
+    def put_json(self, records, blob_name, gzip_compress=True):
+        """Save JSON records to storage as a newline-delimited JSON file.
+
+        Args:
+            records: an iterator of records of type `dict`.
+            blob_name: the name of the destination blob.
+            gzip_compress: whether to use Gzip compression for the blob.
+
+        Returns:
+            blob: the blob object that was created.
+        """
+        pass
