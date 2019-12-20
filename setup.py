@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="findopendata",
-    version="1.0.0",
+    version="1.0.2",
     author="Eric Zhu",
     author_email="",
     description="A search engine for Open Data.",
@@ -15,7 +15,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/findopendata/findopendata",
     keywords='open-data search-engine',
-    packages=["findopendata"],
+    packages=setuptools.find_packages(exclude=["tests*"]),
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: Apache Software License",
