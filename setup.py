@@ -25,7 +25,7 @@ setuptools.setup(
     install_requires=[
         'requests>=2.22.0',
         'google-cloud-storage>=1.17.0',
-        'azure-storage>=0.36.0',
+        'azure-storage-blob>=0.36.0',
         'google-auth>=1.6.3',
         'gcsfs>=0.3.0',
         'celery>=4.3.0',
