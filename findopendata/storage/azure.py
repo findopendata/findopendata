@@ -7,117 +7,109 @@ import gzip
 
 import fastavro
 import simplejson as json
-from azure.storage.blob import BlockBlobService, BlobBlock
+from azure.storage.blob import BlobBlock, ContainerClient, BlobClient
 
 from .base import Blob, BlobStorage
 
 
 def _encode_base64(data):
     if isinstance(data, str):
-        data = data.encode('utf-8')
+        data = data.encode("utf-8")
     encoded = base64.b64encode(data)
-    return encoded.decode('utf-8')
+    return encoded.decode("utf-8")
 
 
 def _block_id(offset):
-   return urllib.parse.quote(_encode_base64('{0:032d}'.format(offset)))
+    return urllib.parse.quote(_encode_base64("{0:032d}".format(offset)))
 
 
 class AzureBlobReader(io.BufferedIOBase):
-    
-    def __init__(self, block_blob_service: BlockBlobService, 
-            container_name: str, blob_name: str):
-        self._service = block_blob_service
-        self._container_name = container_name
-        self._blob_name = blob_name
+    def __init__(
+        self,
+        blob_client: BlobClient,
+    ):
+        self._blob_client = blob_client
         self._start = 0
-        self._chunk_size = block_blob_service.MAX_CHUNK_GET_SIZE 
         self._buf = bytearray()
-        # Get the total size of the blob.
-        blob = self._service.get_blob_properties(self._container_name, 
-                self._blob_name)
-        self._total_size = blob.properties.content_length
-    
+        self._chunks = None
+
     def writable(self):
         return False
-    
+
     def read(self, size=-1):
+        if self._start == 0:
+            self._chunks = self._blob_client.download_blob().chunks()
         while (not size or size < 0) or len(self._buf) < size:
-            if self._start >= self._total_size:
+            chunk = next(self._chunks, None)
+            if chunk is None:
                 break
-            end_range = self._start + self._chunk_size - 1
-            if end_range >= self._total_size:
-                end_range = self._total_size - 1
-            blob = self._service.get_blob_to_bytes(self._container_name, 
-                    self._blob_name, start_range=self._start, 
-                    end_range=end_range)
-            if len(blob.content) == 0:
-                break
-            self._buf += bytearray(blob.content)
-            self._start += self._chunk_size
+            self._buf += chunk
+            self._start += len(chunk)
         data = self._buf[:size]
         self._buf = self._buf[size:]
         return bytes(data)
-    
+
     def seek(self, offset):
+        if offset != 0:
+            raise ValueError("Only seeking to beginning is supported.")
         self._start = offset
         self._buf.clear()
+        self._chunks = None
 
 
 class AzureBlobWriter(io.BufferedIOBase):
-
-    def __init__(self, block_blob_service: BlockBlobService, 
-            container_name: str, blob_name: str):
-        self._service = block_blob_service
-        self._container_name = container_name
-        self._blob_name = blob_name
-        self._block_size = block_blob_service.MAX_BLOCK_SIZE
+    def __init__(
+        self,
+        blob_client: BlobClient,
+        block_size: int = 4 * 1024 * 1024,
+    ):
+        self._blob_client = blob_client
+        self._block_size = block_size
         self._buf = bytearray()
         self._block_offset = 0
         self._blocks = collections.deque([])
         self._closed = False
         self._position = 0
-    
+
     def readable(self):
         return False
-    
+
     def write(self, b):
         self._buf += bytes(b)
         while len(self._buf) >= self._block_size:
             block_id = _block_id(self._block_offset)
-            self._service.put_block(self._container_name, self._blob_name,
-                    bytes(self._buf[:self._block_size]), block_id)
+            self._blob_client.stage_block(
+                block_id=block_id, data=bytes(self._buf[: self._block_size])
+            )
             self._blocks.append(BlobBlock(block_id))
             self._block_offset += 1
-            self._buf = self._buf[self._block_size:]
+            self._buf = self._buf[self._block_size :]
         self._position += len(b)
         return len(b)
 
     def flush(self):
         if self._buf:
             block_id = _block_id(self._block_offset)
-            self._service.put_block(self._container_name, self._blob_name,
-                    bytes(self._buf), block_id)
+            self._blob_client.stage_block(block_id=block_id, data=bytes(self._buf))
             self._blocks.append(BlobBlock(block_id))
             self._block_offset += 1
             self._buf.clear()
-    
+
     def close(self):
         if self._closed:
             return
         self.flush()
         # Put the block list to make the blob.
-        self._service.put_block_list(self._container_name, self._blob_name,
-                list(self._blocks))
+        self._blob_client.commit_block_list(list(self._blocks))
         self._closed = True
         self._blocks.clear()
-    
+
     def closed(self):
         return self._closed
 
     def tell(self):
         return self._position
-    
+
     def seekable(self):
         return False
 
@@ -126,55 +118,61 @@ class AzureStorage(BlobStorage):
     """Azure storage provider that utilizes the Azure blob storage.
 
     Args:
-        connection_string: See http://azure.microsoft.com/en-us/documentation/articles/storage-configure-connection-string/ 
+        connection_string: See http://azure.microsoft.com/en-us/documentation/articles/storage-configure-connection-string/
             for the connection string format.
         container_name: the name of the blob container in which all blobs
             are stored.
-        
+
     """
-    def __init__(self, connection_string, container_name):
-        self._service = BlockBlobService(connection_string=connection_string)
-        if not self._service.exists(container_name):
-            raise ValueError("Container does not exist: "+container_name)
+
+    def __init__(
+        self, connection_string, container_name, block_size: int = 4 * 1024 * 1024
+    ):
+        self._container = ContainerClient.from_connection_string(
+            connection_string, container_name
+        )
+        if not self._container.exists():
+            raise ValueError("Container does not exist: " + container_name)
         self._container_name = container_name
-    
+        self._block_size = block_size
+
     def get_object(self, blob_name):
-        blob = self._service.get_blob_to_text(self._container_name,
-                blob_name)
-        return json.loads(blob.content) 
-    
+        blob_client = self._container.get_blob_client(blob_name)
+        blob_content = blob_client.download_blob().content_as_text()
+        return json.loads(blob_content)
+
     def put_object(self, obj, blob_name):
-        data = json.dumps(obj).encode("utf-8")
-        self._service.create_blob_from_bytes(self._container_name, blob_name,
-                data)
-        return Blob(blob_name, len(data))
+        blob_client = self._container.get_blob_client(blob_name)
+        blob_content = json.dumps(obj).encode("utf-8")
+        blob_client.upload_blob(blob_content, overwrite=True)
+        return Blob(blob_name, len(blob_content))
 
     @contextlib.contextmanager
     def get_file(self, blob_name):
         try:
-            stream = AzureBlobReader(self._service, 
-                    self._container_name, blob_name)
+            stream = AzureBlobReader(self._container.get_blob_client(blob_name))
             yield stream
         finally:
             stream.close()
 
     def put_file(self, fileobj, blob_name):
-        self._service.create_blob_from_stream(self._container_name, blob_name,
-                fileobj)
+        self._container.upload_blob(blob_name, fileobj)
         size = fileobj.tell()
         return Blob(blob_name, size)
-    
-    def put_avro(self, schema, records, blob_name, codec='snappy'):
-        writer = AzureBlobWriter(self._service,
-            self._container_name, blob_name)
+
+    def put_avro(self, schema, records, blob_name, codec="snappy"):
+        writer = AzureBlobWriter(
+            self._container.get_blob_client(blob_name), block_size=self._block_size
+        )
         fastavro.writer(writer, schema, records, codec)
         writer.close()
-        size = writer.tell() 
+        size = writer.tell()
         return Blob(blob_name, size)
 
     def put_json(self, records, blob_name, gzip_compress=True):
-        writer = AzureBlobWriter(self._service,
-            self._container_name, blob_name)
+        writer = AzureBlobWriter(
+            self._container.get_blob_client(blob_name), block_size=self._block_size
+        )
         newline = "\n"
         if gzip_compress:
             with gzip.open(writer, "wt") as f:
@@ -187,5 +185,5 @@ class AzureStorage(BlobStorage):
                     f.write(json.dumps(record))
                     f.write(newline)
         writer.close()
-        size = writer.tell() 
+        size = writer.tell()
         return Blob(blob_name, size)
