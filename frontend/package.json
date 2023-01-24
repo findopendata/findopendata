@@ -19,7 +19,7 @@
     "react-octicon": "^3.0.1",
     "react-responsive": "^7.0.0",
     "react-router-dom": "^5.0.1",
-    "react-scripts": "3.0.1",
+    "react-scripts": "5.0.1",
     "react-text-truncate": "^0.14.1",
     "throttle-debounce": "^2.1.0",
     "ts-react-json-table": "^0.1.2",
