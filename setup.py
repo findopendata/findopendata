@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="findopendata",
-    version="1.0.4",
+    version="1.0.5",
     author="Eric Zhu",
     author_email="",
     description="A search engine for Open Data.",
