@@ -156,7 +156,7 @@ class AzureStorage(BlobStorage):
             stream.close()
 
     def put_file(self, fileobj, blob_name):
-        self._container.upload_blob(blob_name, fileobj)
+        self._container.upload_blob(blob_name, fileobj, overwrite=True)
         size = fileobj.tell()
         return Blob(blob_name, size)
 
